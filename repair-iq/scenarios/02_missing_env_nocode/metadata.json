@@ -1,0 +1,11 @@
+{
+  "scenario_id": "02_missing_env_nocode",
+  "title": "Missing PAYMENT_GATEWAY_URL Environment Variable",
+  "author": "devops-lead@cloudops.net",
+  "commit_hash": "f6e5d4c3b2a10987",
+  "changed_file": "app.py",
+  "expected_classification": "CONFIG_ENV_ISSUE",
+  "missing_env_var": "PAYMENT_GATEWAY_URL",
+  "recommended_env_value": "https://sandbox-gateway.payment.io/v2",
+  "description": "Production gateway URL configuration missing in test environment variables causing KeyError: 'PAYMENT_GATEWAY_URL'."
+}

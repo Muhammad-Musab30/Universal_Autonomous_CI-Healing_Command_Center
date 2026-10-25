@@ -1,0 +1,57 @@
+[
+  {
+    "id": "MEM-2024-001",
+    "failure_signature": "TimeoutError: Payment gateway did not respond within 100ms",
+    "root_cause": "Transient network latency spike",
+    "accepted_patch_pattern": "Add bounded retry loop (max_retries=3) instead of increasing timeout globally",
+    "reviewer_feedback": "Do NOT wrap in a bare try/except pass. Always preserve explicit exception raising after max_retries.",
+    "project_convention": "Explicit bounded retries, zero silent catches.",
+    "tags": [
+      "timeout",
+      "async",
+      "retry",
+      "network"
+    ],
+    "created_at": "2024-10-15T09:30:00Z"
+  },
+  {
+    "id": "MEM-2024-002",
+    "failure_signature": "ModuleNotFoundError: No module named 'utils_v1'",
+    "root_cause": "Legacy module migration to utils.py",
+    "accepted_patch_pattern": "Update import to point to consolidated utils module with correct function name",
+    "reviewer_feedback": "Do not leave dead import stubs or shim files. Migrate callers to canonical utils module.",
+    "project_convention": "Canonical modular imports, no deprecated legacy wrappers.",
+    "tags": [
+      "import",
+      "refactor",
+      "modules"
+    ],
+    "created_at": "2024-10-18T14:15:00Z"
+  },
+  {
+    "id": "MEM-2026-003",
+    "failure_signature": "Mathematical logic error in discount application formula.",
+    "root_cause": "Root cause identified in app.py at failing assertion/call site.",
+    "accepted_patch_pattern": "Corrected the discount application formula in app.py from calculating discount amount `price * (pct / 100)` to calculating net discounted price `price * (1 - pct / 100)`. This resolves the inverted order total assertions.",
+    "reviewer_feedback": "Approved: Discount math inversion resolved and counterfactually verified.",
+    "project_convention": "Reviewed and approved by human copilot.",
+    "tags": [
+      "human_reviewed",
+      "01_logic_bug"
+    ],
+    "created_at": "2026-10-24T17:22:45.632009+00:00"
+  },
+  {
+    "id": "MEM-2026-004",
+    "failure_signature": "Logic assertion failure or calculation regression in business rules.",
+    "root_cause": "Logic failure in app.py",
+    "accepted_patch_pattern": "Corrected the discount application formula in app.py from calculating discount amount `price * (pct / 100)` to calculating net discounted price `price * (1 - pct / 100)`. This resolves the inverted order total assertions.",
+    "reviewer_feedback": "Approved: Discount math inversion resolved and counterfactually verified.",
+    "project_convention": "Reviewed and approved by human copilot.",
+    "tags": [
+      "human_reviewed",
+      "01_logic_bug"
+    ],
+    "created_at": "2026-10-25T07:42:59.167828+00:00"
+  }
+]

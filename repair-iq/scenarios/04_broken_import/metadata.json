@@ -1,0 +1,9 @@
+{
+  "scenario_id": "04_broken_import",
+  "title": "Broken Import After Utility Consolidation Refactor",
+  "author": "devin.refactor@platform.dev",
+  "commit_hash": "d4e5f6a7b8c90123",
+  "changed_file": "app.py",
+  "expected_classification": "DEPENDENCY_IMPORT",
+  "description": "Legacy module utils_v1 was consolidated into utils.py where calculate_tax became compute_tax, causing ModuleNotFoundError."
+}

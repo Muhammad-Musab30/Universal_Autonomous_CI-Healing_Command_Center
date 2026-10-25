@@ -1,0 +1,9 @@
+{
+  "scenario_id": "05_api_contract_mismatch",
+  "title": "API Contract Field Name and Unit Mismatch",
+  "author": "sarah.api@payments.io",
+  "commit_hash": "e5f6a7b8c9d01234",
+  "changed_file": "app.py",
+  "expected_classification": "CONTRACT_MISMATCH",
+  "description": "Endpoint returns internal schema {'user_id': 101, 'total_cents': 5000} breaking consumer contract expecting {'id': 101, 'amount': 50.0}."
+}

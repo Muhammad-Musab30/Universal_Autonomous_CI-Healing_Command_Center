@@ -1,0 +1,9 @@
+{
+  "scenario_id": "01_logic_bug",
+  "title": "E-Commerce Discount Calculation Inversion",
+  "author": "alex.dev@retailcorp.io",
+  "commit_hash": "a1b2c3d4e5f67890",
+  "changed_file": "app.py",
+  "expected_classification": "LOGIC_BUG",
+  "description": "apply_discount computes discount amount instead of subtracted net price after promotional refactor."
+}

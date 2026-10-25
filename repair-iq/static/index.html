@@ -1,0 +1,2119 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RepairIQ // Universal Autonomous CI-Healing Command Center</title>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            slate: {
+              850: '#111827',
+              925: '#0b0f19',
+              950: '#070a12',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #070a12; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    
+    .glow-emerald { box-shadow: 0 0 25px -4px rgba(16, 185, 129, 0.3); }
+    .glow-cyan { box-shadow: 0 0 25px -4px rgba(6, 182, 212, 0.3); }
+    .glow-rose { box-shadow: 0 0 25px -4px rgba(244, 63, 94, 0.3); }
+    .glow-amber { box-shadow: 0 0 25px -4px rgba(245, 158, 11, 0.3); }
+    .glow-purple { box-shadow: 0 0 25px -4px rgba(168, 85, 247, 0.3); }
+
+    .diff-del { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+    .diff-add { background: rgba(16, 185, 129, 0.15); color: #86efac; }
+    .diff-hunk { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+
+    /* Code editor line counter layout */
+    .editor-wrapper {
+      position: relative;
+      display: flex;
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 0.5rem;
+      overflow: hidden;
+    }
+    .line-numbers {
+      padding: 0.75rem 0.5rem;
+      background: #060911;
+      color: #475569;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      line-height: 1.5rem;
+      text-align: right;
+      user-select: none;
+      border-right: 1px solid #1e293b;
+      min-width: 2.75rem;
+    }
+    .code-textarea {
+      flex: 1;
+      background: transparent;
+      color: #e2e8f0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      line-height: 1.5rem;
+      padding: 0.75rem;
+      resize: vertical;
+      min-height: 200px;
+      outline: none;
+      white-space: pre;
+      overflow-x: auto;
+      tab-size: 4;
+    }
+    .code-textarea:focus {
+      background: rgba(15, 23, 42, 0.5);
+    }
+
+    /* Node hover effects */
+    .graph-node {
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+    }
+    .graph-node:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.5);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col selection:bg-emerald-500 selection:text-black">
+
+  <!-- TOP NAVIGATION & SYSTEM TELEMETRY BAR -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50 px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <div class="h-9 w-9 rounded-lg bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center font-bold text-black shadow-lg shadow-emerald-500/20">
+        <i data-lucide="shield-check" class="w-5 h-5"></i>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-extrabold tracking-tight text-lg text-white">RepairIQ</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-mono">Universal CI-Healing</span>
+          <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1">
+            <i data-lucide="sparkles" class="w-3 h-3"></i> Nebius Token Factory
+          </span>
+        </div>
+        <p class="text-[11px] text-slate-400 font-mono">NVIDIA Nemotron 2-Model Router • 0-100 Confidence • Minimal-Diff Gate</p>
+      </div>
+    </div>
+
+    <!-- Center: Nebius Token Factory Status Pill -->
+    <div class="flex items-center gap-3 bg-slate-950/80 border border-slate-800 rounded-full px-4 py-1.5 shadow-inner">
+      <div class="flex items-center gap-2">
+        <span id="api-status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="api-status-text" class="text-xs font-mono font-medium text-slate-200">Nebius Token Factory: Connecting...</span>
+      </div>
+      <div class="h-3 w-px bg-slate-800"></div>
+      <div class="flex items-center gap-2 text-xs font-mono text-slate-400">
+        <span class="text-cyan-400">Fast:</span> <span id="fast-model-name" class="text-slate-300">nemotron-super</span>
+        <span class="text-amber-400 ml-1">Heavy:</span> <span id="heavy-model-name" class="text-slate-300">nemotron-ultra</span>
+      </div>
+    </div>
+
+    <!-- Right Controls: API Key, Reasoning Budget & Seed -->
+    <div class="flex items-center gap-3">
+      <!-- Set Nebius API Key Button -->
+      <button id="btn-open-api-modal" onclick="openApiKeyModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-300 text-xs font-mono font-semibold transition-all hover:glow-emerald cursor-pointer" title="Configure Nebius Token Factory API Key">
+        <i data-lucide="key" class="w-3.5 h-3.5 text-emerald-400"></i>
+        <span>Set Nebius API Key</span>
+      </button>
+
+      <div class="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700 text-xs">
+        <i data-lucide="coins" class="w-3.5 h-3.5 text-amber-400"></i>
+        <span class="text-slate-400">Budget:</span>
+        <input id="input-budget" type="number" step="0.10" value="0.50" class="w-14 bg-transparent text-slate-200 font-mono focus:outline-none text-right font-medium" />
+        <span class="text-slate-500">$</span>
+      </div>
+      <div class="flex items-center gap-1.5 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700 text-xs">
+        <i data-lucide="binary" class="w-3.5 h-3.5 text-cyan-400"></i>
+        <span class="text-slate-400">Seed:</span>
+        <input id="input-seed" type="number" value="42" class="w-12 bg-transparent text-slate-200 font-mono focus:outline-none text-right font-medium" />
+      </div>
+      <a href="https://github.com/Muhammad-Musab30/EduAgent-Interview-Coach" target="_blank" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700" title="Repository">
+        <i data-lucide="github" class="w-4 h-4"></i>
+      </a>
+    </div>
+  </header>
+
+  <!-- MAIN APPLICATION LAYOUT -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- LEFT SIDEBAR: FAILURE GALLERY & LIVE TEAM MEMORY -->
+    <aside class="w-80 border-r border-slate-800 bg-slate-925 flex flex-col flex-shrink-0 overflow-y-auto">
+      <div class="p-4 border-b border-slate-800/80 sticky top-0 bg-slate-925 z-10">
+        <div class="flex items-center justify-between mb-1">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            <i data-lucide="layers" class="w-3.5 h-3.5 text-emerald-400"></i> Failure Library Gallery
+          </h2>
+          <span class="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded font-mono">6 Scenarios</span>
+        </div>
+        <p class="text-[11px] text-slate-400">Curated test scenarios with verified causal solutions</p>
+      </div>
+
+      <!-- Scenarios List Container -->
+      <div id="scenarios-container" class="p-3 space-y-2.5">
+        <div class="text-xs text-slate-400 p-4 text-center">Loading failure library...</div>
+      </div>
+
+      <!-- REPAIR MEMORY BANK VIEWER -->
+      <div class="mt-auto border-t border-slate-800 bg-slate-950/90 p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            <i data-lucide="brain-circuit" class="w-3.5 h-3.5 text-purple-400"></i> Live Team Memory
+          </h3>
+          <span id="memory-count-badge" class="text-[10px] bg-purple-500/10 text-purple-300 border border-purple-500/20 px-1.5 py-0.5 rounded font-mono">0 rules</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mb-2">Historical reviewer rules enforced in future repairs</p>
+        <div id="memory-items-container" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT MAIN WORKSPACE -->
+    <main class="flex-1 overflow-y-auto bg-slate-950 p-6 flex flex-col gap-6">
+
+      <!-- ================================================================= -->
+      <!-- SECTION 1: TOP UNIVERSAL TRIGGER STUDIO (3 INTERACTIVE TABS)       -->
+      <!-- ================================================================= -->
+      <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+          <div class="flex items-center gap-2">
+            <div class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <i data-lucide="terminal-square" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h2 class="text-sm font-bold tracking-tight text-white">Universal CI-Healing Trigger Studio</h2>
+              <p class="text-xs text-slate-400">Run the agent loop on ANY arbitrary code, GitHub repository, or failing CI log</p>
+            </div>
+          </div>
+
+          <!-- Studio Tabs Header -->
+          <div class="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
+            <button id="tab-btn-custom" onclick="switchStudioTab('custom')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 bg-emerald-600 text-white shadow">
+              <i data-lucide="code-2" class="w-3.5 h-3.5"></i> Live Code Sandbox
+            </button>
+            <button id="tab-btn-github" onclick="switchStudioTab('github')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 text-slate-400 hover:text-white">
+              <i data-lucide="github" class="w-3.5 h-3.5"></i> Clone GitHub Repo
+            </button>
+            <button id="tab-btn-cilog" onclick="switchStudioTab('cilog')" class="px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 text-slate-400 hover:text-white">
+              <i data-lucide="activity" class="w-3.5 h-3.5"></i> CI Log Inspector
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 1 CONTENT: LIVE CODE & TEST SANDBOX -->
+        <div id="tab-content-custom" class="space-y-4">
+          <!-- Quick Load Sample Bugs Bar -->
+          <div class="flex items-center justify-between flex-wrap gap-2 bg-slate-950/70 p-2.5 rounded-xl border border-slate-800/80">
+            <span class="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
+              <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i> Quick-Load Sample Failure:
+            </span>
+            <div class="flex items-center gap-2 flex-wrap">
+              <button onclick="loadSampleBug('env')" class="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 text-xs font-mono transition-all flex items-center gap-1">
+                <span>1. Missing Env Var</span>
+              </button>
+              <button onclick="loadSampleBug('flaky')" class="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/30 text-xs font-mono transition-all flex items-center gap-1">
+                <span>2. Flaky Network Test</span>
+              </button>
+              <button onclick="loadSampleBug('logic')" class="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 text-emerald-300 border border-emerald-500/30 text-xs font-mono transition-all flex items-center gap-1">
+                <span>3. Real Logic Regression</span>
+              </button>
+              <button onclick="loadSampleBug('clear')" class="px-2.5 py-1 rounded-md bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-rose-400 border border-slate-700 text-xs font-mono transition-all flex items-center gap-1">
+                <i data-lucide="trash-2" class="w-3 h-3"></i> Clear & Write Custom
+              </button>
+            </div>
+          </div>
+
+          <!-- Dual Side-by-Side Editors -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <!-- Left Editor: Source Code -->
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center justify-between px-1">
+                <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5 font-mono">
+                  <i data-lucide="file-code" class="w-3.5 h-3.5 text-cyan-400"></i> Source Code (app.py)
+                </span>
+                <span class="text-[10px] text-slate-500 font-mono">Type or paste any Python code</span>
+              </div>
+              <div class="editor-wrapper">
+                <div id="lines-app-code" class="line-numbers">1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10</div>
+                <textarea id="editor-app-code" class="code-textarea" spellcheck="false" placeholder="def my_function():&#10;    # Write code here"></textarea>
+              </div>
+            </div>
+
+            <!-- Right Editor: Test Suite -->
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center justify-between px-1">
+                <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5 font-mono">
+                  <i data-lucide="check-square" class="w-3.5 h-3.5 text-emerald-400"></i> Test Suite (test_app.py)
+                </span>
+                <span class="text-[10px] text-slate-500 font-mono">Pytest assertions executed in sandbox</span>
+              </div>
+              <div class="editor-wrapper">
+                <div id="lines-test-code" class="line-numbers">1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10</div>
+                <textarea id="editor-test-code" class="code-textarea" spellcheck="false" placeholder="def test_my_function():&#10;    # Write tests here"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sandbox Action Footer -->
+          <div class="flex items-center justify-between pt-2">
+            <div class="flex items-center gap-2 text-xs text-slate-400 font-mono">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span>Isolated Git Sandbox Mode 2</span>
+              <span class="text-slate-600">•</span>
+              <span>Diff Budget: &lt;50 lines</span>
+            </div>
+            <button id="btn-heal-custom" onclick="executeCustomCodeRepair()" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all">
+              <i data-lucide="sparkles" class="w-4 h-4"></i>
+              <span>Heal This Failure (Run Agent Loop)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 2 CONTENT: CLONE GITHUB REPO -->
+        <div id="tab-content-github" class="hidden space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="md:col-span-2 space-y-1">
+              <label class="text-xs font-medium text-slate-300 block font-mono">GitHub Repository URL</label>
+              <input id="input-github-url" type="text" value="https://github.com/octocat/Spoon-Knife" placeholder="https://github.com/owner/repository" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-slate-300 block font-mono">Branch</label>
+              <input id="input-github-branch" type="text" value="main" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-slate-300 block font-mono">Test Execution Command</label>
+              <input id="input-github-testcmd" type="text" value="pytest" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-slate-300 block font-mono">Optional Commit SHA</label>
+              <input id="input-github-sha" type="text" placeholder="HEAD" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500" />
+            </div>
+          </div>
+          <div class="flex items-center justify-between pt-2">
+            <span class="text-xs text-slate-400 font-mono">Performs git clone --depth 5 into isolated .sandbox/ workspace</span>
+            <button id="btn-heal-github" onclick="executeGithubRepoRepair()" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-cyan-500/20 transition-all">
+              <i data-lucide="git-pull-request" class="w-4 h-4"></i>
+              <span>Clone & Heal Repository</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 3 CONTENT: CI LOG INSPECTOR -->
+        <div id="tab-content-cilog" class="hidden space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-medium text-slate-300 font-mono">Paste Raw Failing CI Terminal Log</span>
+            <div class="flex items-center gap-2">
+              <button onclick="loadSampleCiLog('assertion')" class="text-[11px] font-mono text-cyan-400 hover:underline">Sample 1: Assertion</button>
+              <span class="text-slate-600">•</span>
+              <button onclick="loadSampleCiLog('import')" class="text-[11px] font-mono text-cyan-400 hover:underline">Sample 2: Import</button>
+              <span class="text-slate-600">•</span>
+              <button onclick="loadSampleCiLog('flaky')" class="text-[11px] font-mono text-cyan-400 hover:underline">Sample 3: Timeout</button>
+            </div>
+          </div>
+          <textarea id="input-ci-log" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-200 focus:outline-none focus:border-emerald-500 min-h-[140px]" placeholder="Paste GitHub Actions or Pytest terminal failure log here..."></textarea>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-slate-400 font-mono">Fast Model categorizes failure taxonomy and suggests remediation</span>
+            <button id="btn-inspect-cilog" onclick="executeCiLogDiagnosis()" class="px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-2 transition-all border border-slate-700">
+              <i data-lucide="search" class="w-4 h-4 text-cyan-400"></i>
+              <span>Inspect & Diagnose Failure</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 2: CONFIDENCE SCORE DIAL & RISK-TIERED AUTONOMY BANNER     -->
+      <!-- ================================================================= -->
+      <section id="confidence-section" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- 0-100 Score Dial & Risk Tier Card (5 cols) -->
+        <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between shadow-lg">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <i data-lucide="gauge" class="w-4 h-4 text-emerald-400"></i> Repair Confidence Scorer
+            </span>
+            <span id="risk-tier-badge" class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-800 text-slate-400 border border-slate-700">
+              Awaiting Run
+            </span>
+          </div>
+
+          <div class="flex items-center justify-around py-4">
+            <!-- Big Circular Dial Score -->
+            <div class="text-center">
+              <div class="relative inline-flex items-center justify-center">
+                <div class="w-28 h-28 rounded-full border-4 border-slate-800 flex flex-col items-center justify-center bg-slate-950 shadow-inner">
+                  <span id="score-dial-number" class="text-4xl font-extrabold font-mono text-emerald-400 tracking-tight">--</span>
+                  <span class="text-[10px] uppercase font-mono text-slate-500 font-semibold">pts / 100</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Risk Tier Guidance Summary -->
+            <div class="space-y-1.5 max-w-[200px]">
+              <span class="text-xs font-bold text-slate-200 block" id="risk-tier-title">Autonomy Decision</span>
+              <p class="text-[11px] text-slate-400 leading-snug" id="risk-tier-desc">Execute a repair run to calculate the transparent 0-100 confidence breakdown.</p>
+              <div id="risk-tier-action-indicator" class="text-[10px] font-mono text-slate-500 pt-1"></div>
+            </div>
+          </div>
+
+          <!-- Iteration Trail Breadcrumb -->
+          <div class="mt-2 pt-3 border-t border-slate-800 flex items-center justify-between text-xs font-mono text-slate-400">
+            <span class="flex items-center gap-1.5">
+              <i data-lucide="repeat" class="w-3.5 h-3.5 text-cyan-400"></i> Reasoning Iterations:
+            </span>
+            <span id="iteration-trail-count" class="text-slate-200 font-bold">1 of 4 max</span>
+          </div>
+        </div>
+
+        <!-- Component Breakdown Checklist (7 cols) -->
+        <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between shadow-lg">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <i data-lucide="check-check" class="w-4 h-4 text-cyan-400"></i> Transparent Point Allocation Breakdown
+            </span>
+            <span class="text-[10px] font-mono text-slate-500">Max: 100 pts • Penalties: -60 pts</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs font-mono py-1">
+            <!-- Item 1: +25 Repro -->
+            <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span id="pt-icon-repro" class="text-slate-600 font-bold">○</span>
+                <span class="text-slate-300">Failure Reproduced</span>
+              </div>
+              <span id="pt-val-repro" class="text-slate-500 font-bold">+25 pts</span>
+            </div>
+
+            <!-- Item 2: +30 Tests & Counterfactual -->
+            <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span id="pt-icon-suite" class="text-slate-600 font-bold">○</span>
+                <span class="text-slate-300">Causal Counterfactual</span>
+              </div>
+              <span id="pt-val-suite" class="text-slate-500 font-bold">+30 pts</span>
+            </div>
+
+            <!-- Item 3: +20 Minimal Diff -->
+            <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span id="pt-icon-diff" class="text-slate-600 font-bold">○</span>
+                <span class="text-slate-300">Minimal-Diff Enforced</span>
+              </div>
+              <span id="pt-val-diff" class="text-slate-500 font-bold">+20 pts</span>
+            </div>
+
+            <!-- Item 4: +15 Static Safety -->
+            <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span id="pt-icon-safety" class="text-slate-600 font-bold">○</span>
+                <span class="text-slate-300">Static AST Safety</span>
+              </div>
+              <span id="pt-val-safety" class="text-slate-500 font-bold">+15 pts</span>
+            </div>
+
+            <!-- Item 5: +10 Memory Match -->
+            <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span id="pt-icon-memory" class="text-slate-600 font-bold">○</span>
+                <span class="text-slate-300">Team Memory Rule</span>
+              </div>
+              <span id="pt-val-memory" class="text-slate-500 font-bold">+10 pts</span>
+            </div>
+
+            <!-- Item 6: Penalties -->
+            <div class="bg-slate-950/70 p-2 rounded-lg border border-slate-800 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span id="pt-icon-penalty" class="text-emerald-400 font-bold">✓</span>
+                <span class="text-slate-300">Zero Violations</span>
+              </div>
+              <span id="pt-val-penalty" class="text-emerald-400 font-bold">0 pts</span>
+            </div>
+          </div>
+
+          <!-- Bottom Notice -->
+          <div id="confidence-justification-bar" class="mt-2 text-[11px] text-slate-400 font-mono bg-slate-950/90 p-2 rounded border border-slate-800 truncate">
+            Confidence justification: Run repair to inspect score rationale.
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 3: 4-STAGE AGENT PIPELINE BAR & DYNAMIC OUTCOME BANNER     -->
+      <!-- ================================================================= -->
+      <section class="flex flex-col gap-3">
+        <!-- Agent Pipeline Bar -->
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-sm">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <i data-lucide="git-pull-request" class="w-3.5 h-3.5 text-cyan-400"></i> Parallel Agent Orchestration Timeline
+            </span>
+            <span id="pipeline-total-time" class="text-xs font-mono text-slate-400">Total Latency: --</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <!-- Stage 1: Triage Agent -->
+            <div id="agent-stage-1" class="bg-slate-950/60 border border-slate-800/80 rounded-lg p-3 transition-all">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[11px] font-mono text-cyan-400 font-semibold flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span> 1. Triage Agent
+                </span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">Fast (120B)</span>
+              </div>
+              <p id="agent-stage-1-desc" class="text-xs text-slate-300 line-clamp-1">8-Category Taxonomy & Flakiness</p>
+              <div class="mt-2 flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span id="agent-stage-1-status">Idle</span>
+                <span id="agent-stage-1-time">--</span>
+              </div>
+            </div>
+
+            <!-- Stage 2: Investigation Agent -->
+            <div id="agent-stage-2" class="bg-slate-950/60 border border-slate-800/80 rounded-lg p-3 transition-all">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[11px] font-mono text-amber-400 font-semibold flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> 2. Investigation Agent
+                </span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">Heavy (550B)</span>
+              </div>
+              <p id="agent-stage-2-desc" class="text-xs text-slate-300 line-clamp-1">AST causal trace & memory match</p>
+              <div class="mt-2 flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span id="agent-stage-2-status">Idle</span>
+                <span id="agent-stage-2-time">--</span>
+              </div>
+            </div>
+
+            <!-- Stage 3: Repair Agent -->
+            <div id="agent-stage-3" class="bg-slate-950/60 border border-slate-800/80 rounded-lg p-3 transition-all">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[11px] font-mono text-emerald-400 font-semibold flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 3. Repair Agent
+                </span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">Heavy (550B)</span>
+              </div>
+              <p id="agent-stage-3-desc" class="text-xs text-slate-300 line-clamp-1">Synthesize minimal targeted diff</p>
+              <div class="mt-2 flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span id="agent-stage-3-status">Idle</span>
+                <span id="agent-stage-3-time">--</span>
+              </div>
+            </div>
+
+            <!-- Stage 4: Verifier Agent -->
+            <div id="agent-stage-4" class="bg-slate-950/60 border border-slate-800/80 rounded-lg p-3 transition-all">
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[11px] font-mono text-purple-400 font-semibold flex items-center gap-1.5">
+                  <span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span> 4. Verifier Agent
+                </span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">Sandbox</span>
+              </div>
+              <p id="agent-stage-4-desc" class="text-xs text-slate-300 line-clamp-1">4-Step Counterfactual proof</p>
+              <div class="mt-2 flex items-center justify-between text-[11px] font-mono text-slate-400">
+                <span id="agent-stage-4-status">Idle</span>
+                <span id="agent-stage-4-time">--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Outcome Banner -->
+        <div id="outcome-banner" class="hidden rounded-xl border p-4 flex items-start justify-between gap-4 transition-all">
+          <div class="flex items-start gap-3">
+            <div id="outcome-icon-container" class="mt-0.5 p-1.5 rounded-lg">
+              <i id="outcome-icon" data-lucide="check-circle-2" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 id="outcome-title" class="font-bold text-sm tracking-wide">Status Title</h3>
+              <p id="outcome-subtitle" class="text-xs text-slate-300 mt-0.5">Status explanation description.</p>
+            </div>
+          </div>
+          <div id="outcome-badge-container"></div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 4: INTERACTIVE CLICKABLE EVIDENCE GRAPH & CAUSAL PROOF     -->
+      <!-- ================================================================= -->
+      <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left: Interactive Evidence Graph (6 cols) -->
+        <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col shadow-lg">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <i data-lucide="git-commit" class="w-4 h-4 text-cyan-400"></i> Interactive Causal Evidence Graph
+            </h3>
+            <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded font-mono">
+              Click Any Node to Inspect Raw Evidence
+            </span>
+          </div>
+
+          <p class="text-[11px] text-slate-400 mb-3">
+            Visual trace from failing test assertion to candidate patch. Every node is an interactive evidence artifact.
+          </p>
+
+          <div class="flex-1 bg-slate-950/80 border border-slate-800 rounded-xl p-3 overflow-y-auto max-h-[360px]">
+            <div id="evidence-graph-flow" class="space-y-2.5">
+              <div class="text-slate-500 text-center py-12 text-xs font-mono">
+                Trigger a repair above to construct the interactive evidence graph.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Counterfactual Verification Matrix (6 cols) -->
+        <div class="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col glow-emerald shadow-lg">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <i data-lucide="shield-check" class="w-4 h-4 text-emerald-400"></i> Counterfactual Verification Matrix
+            </h3>
+            <span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono font-medium">
+              4-Step Causal Proof
+            </span>
+          </div>
+
+          <div class="flex-1 overflow-x-auto">
+            <table class="w-full text-left text-xs font-mono border-collapse">
+              <thead>
+                <tr class="border-b border-slate-800 text-slate-400">
+                  <th class="py-2 px-3">Step</th>
+                  <th class="py-2 px-3">Evaluation Phase</th>
+                  <th class="py-2 px-3">Expected</th>
+                  <th class="py-2 px-3">Actual</th>
+                  <th class="py-2 px-3">Duration</th>
+                  <th class="py-2 px-3 text-right">Proof</th>
+                </tr>
+              </thead>
+              <tbody id="counterfactual-table-body" class="divide-y divide-slate-800/60">
+                <tr>
+                  <td colspan="6" class="py-12 text-center text-slate-500">
+                    Awaiting repair run execution...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div id="causal-verdict-banner" class="mt-3 p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-xs font-mono text-emerald-300 flex items-center justify-between hidden">
+            <span class="flex items-center gap-2">
+              <i data-lucide="check-check" class="w-4 h-4 text-emerald-400"></i> Causal Verdict: 100% CAUSALLY LINKED TO REPAIR
+            </span>
+            <span class="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded font-bold">Fail ➔ Pass ➔ Fail on Revert</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 5: PATCH QUALITY GATE & NEBIUS TOKEN FINANCIAL TELEMETRY   -->
+      <!-- ================================================================= -->
+      <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left: Static Patch Quality Gate Checklist (5 cols) -->
+        <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col shadow-lg">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <i data-lucide="file-check" class="w-4 h-4 text-rose-400"></i> Patch Quality Gate (Static AST & Safety)
+            </h3>
+            <span id="quality-gate-status-badge" class="text-[10px] px-2 py-0.5 rounded-full font-mono bg-slate-800 text-slate-400">
+              Not Evaluated
+            </span>
+          </div>
+
+          <div class="space-y-2 text-xs" id="quality-gate-checklist">
+            <div class="flex items-center justify-between p-2 rounded bg-slate-950/50 border border-slate-800/60">
+              <span class="text-slate-300 flex items-center gap-2">
+                <span id="check-icon-ast" class="text-slate-600 font-bold">•</span> AST Static Syntax Tree Verified
+              </span>
+              <span id="check-badge-ast" class="font-mono text-slate-500">Pending</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded bg-slate-950/50 border border-slate-800/60">
+              <span class="text-slate-300 flex items-center gap-2">
+                <span id="check-icon-asserts" class="text-slate-600 font-bold">•</span> Zero Deleted Test Assertions
+              </span>
+              <span id="check-badge-asserts" class="font-mono text-slate-500">Pending</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded bg-slate-950/50 border border-slate-800/60">
+              <span class="text-slate-300 flex items-center gap-2">
+                <span id="check-icon-exceptions" class="text-slate-600 font-bold">•</span> No Broad Exception Swallowing
+              </span>
+              <span id="check-badge-exceptions" class="font-mono text-slate-500">Pending</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded bg-slate-950/50 border border-slate-800/60">
+              <span class="text-slate-300 flex items-center gap-2">
+                <span id="check-icon-hygiene" class="text-slate-600 font-bold">•</span> No Secrets or TODOs Introduced
+              </span>
+              <span id="check-badge-hygiene" class="font-mono text-slate-500">Pending</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded bg-slate-950/50 border border-slate-800/60">
+              <span class="text-slate-300 flex items-center gap-2">
+                <span id="check-icon-diff" class="text-slate-600 font-bold">•</span> Minimal Diff Budget (&lt;50 lines)
+              </span>
+              <span id="check-badge-diff" class="font-mono text-slate-500">Pending</span>
+            </div>
+          </div>
+
+          <div id="quality-refusal-box" class="mt-3 p-2.5 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs hidden">
+            <span class="font-semibold block mb-0.5">Safety Violation Refusal Reason:</span>
+            <span id="quality-refusal-text" class="text-[11px] font-mono"></span>
+          </div>
+        </div>
+
+        <!-- Right: Nebius Token Factory Financial Telemetry (7 cols) -->
+        <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col shadow-lg">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <i data-lucide="bar-chart-2" class="w-4 h-4 text-emerald-400"></i> Nebius Token Factory Financial Telemetry
+            </h3>
+            <span class="text-[10px] bg-slate-800 text-slate-300 font-mono px-2 py-0.5 rounded">
+              Two-Model Smart Routing
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <div class="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
+              <span class="text-[10px] text-slate-400 block font-mono">Fast Model Calls</span>
+              <span id="stat-fast-calls" class="text-base font-bold font-mono text-cyan-400">0</span>
+              <span class="text-[10px] text-slate-400 block font-mono">$0.30 / 1M</span>
+            </div>
+            <div class="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
+              <span class="text-[10px] text-slate-400 block font-mono">Heavy Model Calls</span>
+              <span id="stat-heavy-calls" class="text-base font-bold font-mono text-amber-400">0</span>
+              <span class="text-[10px] text-slate-400 block font-mono">$1.00 / 1M</span>
+            </div>
+            <div class="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
+              <span class="text-[10px] text-slate-400 block font-mono">Total Tokens</span>
+              <span id="stat-total-tokens" class="text-base font-bold font-mono text-slate-200">0</span>
+              <span class="text-[10px] text-slate-400 block font-mono">Prompt + Comp</span>
+            </div>
+            <div class="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
+              <span class="text-[10px] text-slate-400 block font-mono">Total Cost</span>
+              <span id="stat-total-cost" class="text-base font-bold font-mono text-emerald-400">$0.000000</span>
+              <span class="text-[10px] text-slate-400 block font-mono">USD</span>
+            </div>
+          </div>
+
+          <!-- Savings Progress Meter -->
+          <div class="bg-slate-950/80 p-3 rounded-lg border border-emerald-500/20">
+            <div class="flex items-center justify-between text-xs mb-1.5">
+              <span class="font-medium text-emerald-400 flex items-center gap-1.5 font-mono">
+                <i data-lucide="trending-down" class="w-4 h-4"></i> Dollars Saved by 2-Model Routing
+              </span>
+              <span id="stat-savings-usd" class="font-bold font-mono text-emerald-300">$0.000000 (0.0% saved)</span>
+            </div>
+            <div class="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+              <div id="savings-progress-bar" class="bg-gradient-to-r from-emerald-500 to-cyan-400 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1 font-mono">
+              Comparing hybrid routing vs sending 100% of triage, AST extraction, and verification to Nemotron-Ultra.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 6: CODE DIFF / FIXED PREVIEW & REVIEWER COPILOT           -->
+      <!-- ================================================================= -->
+      <section class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left: Unified Code Diff OR Fixed Full Code (7 cols) -->
+        <div class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col shadow-lg">
+          <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2.5">
+            <div class="flex items-center gap-2">
+              <button id="view-tab-diff" onclick="switchDiffView('diff')" class="px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-slate-800 text-cyan-300 border border-cyan-500/30 flex items-center gap-1">
+                <i data-lucide="git-branch" class="w-3.5 h-3.5"></i> Unified Patch Diff
+              </button>
+              <button id="view-tab-code" onclick="switchDiffView('code')" class="px-2.5 py-1 rounded-md text-xs font-mono text-slate-400 hover:text-white flex items-center gap-1">
+                <i data-lucide="file-code" class="w-3.5 h-3.5"></i> Fixed Code Preview
+              </button>
+            </div>
+            <div class="flex items-center gap-2">
+              <span id="diff-file-tag" class="text-[10px] bg-slate-800 text-slate-300 font-mono px-2 py-0.5 rounded">
+                app.py
+              </span>
+              <button id="btn-copy-to-editor" onclick="copyFixedCodeToEditor()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 text-xs font-mono flex items-center gap-1 transition-all" title="Copy repaired code into Source Editor">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy to Editor
+              </button>
+            </div>
+          </div>
+
+          <!-- View A: Diff Container -->
+          <div id="diff-container" class="flex-1 bg-slate-950/90 border border-slate-800 rounded-xl p-3 font-mono text-xs overflow-x-auto min-h-[240px]">
+            <div class="text-slate-500 text-center py-16">Execute a repair to review the proposed minimal patch diff.</div>
+          </div>
+
+          <!-- View B: Fixed Code Full Preview -->
+          <div id="fixed-code-container" class="hidden flex-1 bg-slate-950/90 border border-slate-800 rounded-xl p-3 font-mono text-xs overflow-x-auto min-h-[240px]">
+            <pre id="fixed-code-text" class="text-slate-200">No fixed code generated yet.</pre>
+          </div>
+        </div>
+
+        <!-- Right: Reviewer Copilot Intelligence (5 cols) -->
+        <div class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col shadow-lg">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+              <i data-lucide="bot" class="w-4 h-4 text-indigo-400"></i> Reviewer Copilot Intelligence
+            </h3>
+            <span id="blast-radius-badge" class="text-[10px] px-2 py-0.5 rounded font-mono bg-slate-800 text-slate-300">
+              Risk: Pending
+            </span>
+          </div>
+
+          <div id="copilot-container" class="flex-1 bg-slate-950/70 border border-slate-800 rounded-xl p-3 space-y-3 text-xs overflow-y-auto">
+            <div>
+              <span class="text-slate-400 font-semibold block text-[11px] mb-0.5">What Changed & Why:</span>
+              <p id="copilot-what-changed" class="text-slate-300">Awaiting repair analysis...</p>
+            </div>
+            <div>
+              <span class="text-slate-400 font-semibold block text-[11px] mb-0.5">Rejected Alternatives:</span>
+              <ul id="copilot-alternatives" class="space-y-1 text-slate-400">
+                <li>• None evaluated</li>
+              </ul>
+            </div>
+            <div>
+              <span class="text-slate-400 font-semibold block text-[11px] mb-0.5">What Could Break:</span>
+              <p id="copilot-could-break" class="text-slate-300">--</p>
+            </div>
+            <div class="pt-2 border-t border-slate-800">
+              <span class="text-slate-400 font-semibold block text-[11px] mb-0.5">Rollback Command:</span>
+              <code id="copilot-rollback-cmd" class="text-[11px] text-amber-300 font-mono bg-slate-900 px-2 py-1 rounded block">git revert HEAD</code>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- SECTION 7: HUMAN APPROVAL, LOCAL PR & EXPORT ACTION BAR            -->
+      <!-- ================================================================= -->
+      <section class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
+        <!-- Left: Action Buttons -->
+        <div class="flex items-center gap-2 flex-wrap">
+          <button id="btn-replay" onclick="triggerReplay()" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50" disabled>
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-cyan-400"></i> Repair Replay
+          </button>
+          <button id="btn-download-dossier" onclick="downloadDossier()" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50" disabled>
+            <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-400"></i> Download Dossier (.md)
+          </button>
+          <button id="btn-preview-pr" onclick="openPrModal()" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-medium text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50" disabled>
+            <i data-lucide="file-text" class="w-3.5 h-3.5 text-purple-400"></i> GitHub PR Payload
+          </button>
+        </div>
+
+        <!-- Right: Human-in-the-Loop Approval & Feedback Input -->
+        <div class="flex items-center gap-2 w-full md:w-auto flex-1 max-w-xl justify-end">
+          <input id="input-reviewer-feedback" type="text" placeholder="Add reviewer convention (e.g., 'Ensure bounded retry loop')" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 font-mono" />
+          <button id="btn-approve-pr" onclick="submitDecision('approve')" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition-all disabled:opacity-50 disabled:bg-slate-800 disabled:cursor-not-allowed">
+            <i id="btn-approve-icon" data-lucide="check" class="w-3.5 h-3.5"></i>
+            <span id="btn-approve-text">Approve & Open PR</span>
+          </button>
+          <button id="btn-reject" onclick="submitDecision('reject')" class="px-3.5 py-2 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 font-medium text-xs flex items-center gap-1.5 transition-colors disabled:opacity-50">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i> Reject
+          </button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- EVIDENCE NODE RAW INSPECTOR MODAL -->
+  <div id="inspector-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+        <div class="flex items-center gap-2">
+          <i id="inspector-icon" data-lucide="search" class="w-4 h-4 text-cyan-400"></i>
+          <h3 id="inspector-title" class="font-bold text-sm text-white">Evidence Node Inspector</h3>
+        </div>
+        <button onclick="closeInspectorModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-4 flex-1 overflow-y-auto space-y-3 font-mono text-xs">
+        <div id="inspector-subtitle" class="text-slate-400 text-[11px] pb-2 border-b border-slate-800"></div>
+        <pre id="inspector-content" class="bg-slate-950 p-4 rounded-xl border border-slate-800/80 text-slate-300 whitespace-pre-wrap selection:bg-cyan-500 selection:text-black overflow-x-auto"></pre>
+      </div>
+      <div class="p-3 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between text-xs text-slate-400">
+        <span>Raw artifact from isolated sandbox environment</span>
+        <button onclick="copyInspectorContent()" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-medium text-xs flex items-center gap-1 border border-slate-700">
+          <i data-lucide="copy" class="w-3 h-3"></i> Copy
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GITHUB PR PREVIEW MODAL -->
+  <div id="pr-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
+        <div class="flex items-center gap-2">
+          <i data-lucide="git-pull-request" class="w-4 h-4 text-emerald-400"></i>
+          <h3 class="font-bold text-sm text-white">GitHub Pull Request Payload Preview</h3>
+        </div>
+        <button onclick="closePrModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="p-4 flex-1 overflow-y-auto">
+        <pre id="pr-modal-content" class="bg-slate-950 p-4 rounded-xl border border-slate-800/80 font-mono text-xs text-slate-300 whitespace-pre-wrap selection:bg-emerald-500 selection:text-black"></pre>
+      </div>
+      <div class="p-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
+        <span class="text-xs text-slate-400 font-mono">Real branch created & committed in sandbox repository</span>
+        <button onclick="copyPrMarkdown()" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center gap-1.5">
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy Markdown
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEBIUS API KEY CONFIGURATION MODAL -->
+  <div id="api-key-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
+      <div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
+        <div class="flex items-center gap-2.5">
+          <div class="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 glow-emerald">
+            <i data-lucide="key" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-base">Set Nebius Token Factory Key</h3>
+            <p class="text-xs text-slate-400 font-mono">Real-time NVIDIA Nemotron LLM inference</p>
+          </div>
+        </div>
+        <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-white p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-mono text-slate-300 font-medium mb-1.5 flex items-center justify-between">
+            <span>NEBIUS_API_KEY</span>
+            <span id="modal-key-status-badge" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 font-mono">Checking...</span>
+          </label>
+          <div class="relative">
+            <input 
+              id="input-nebius-key" 
+              type="password" 
+              placeholder="paste your NEBIUS_API_KEY here..." 
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/60 pr-10"
+            />
+            <button type="button" onclick="toggleApiKeyVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200">
+              <i id="key-vis-icon" data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1.5">
+            Key is saved to local <code class="text-slate-300">.env</code> and instantly connects live router.
+          </p>
+        </div>
+
+        <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3 space-y-2">
+          <div class="flex items-center justify-between text-xs font-mono">
+            <span class="text-slate-400">Target Endpoint:</span>
+            <span class="text-cyan-400">https://api.tokenfactory.nebius.com/v1/</span>
+          </div>
+          <div class="flex items-center justify-between text-xs font-mono">
+            <span class="text-slate-400">Fast Classifier:</span>
+            <span id="modal-fast-model-id" class="text-emerald-400 font-semibold truncate max-w-[260px]">nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B</span>
+          </div>
+          <div class="flex items-center justify-between text-xs font-mono">
+            <span class="text-slate-400">Reasoning Repairer:</span>
+            <span id="modal-heavy-model-id" class="text-amber-400 font-semibold truncate max-w-[260px]">nvidia/Llama-3_1-Nemotron-Ultra-253B-v1</span>
+          </div>
+        </div>
+
+        <div id="modal-key-alert" class="hidden text-xs p-3 rounded-xl font-mono"></div>
+
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <button onclick="closeApiKeyModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition-colors cursor-pointer">
+            Cancel
+          </button>
+          <button id="btn-save-nebius-key" onclick="submitApiKey()" class="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold font-mono transition-all glow-emerald flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="zap" class="w-3.5 h-3.5 text-black"></i>
+            <span>Save & Connect LIVE</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT APPLICATION CONTROLLER -->
+  <script>
+    // Application State
+    let currentRun = null;
+    let scenarios = [];
+    let currentScenarioId = "01_logic_bug";
+    let activeStudioTab = "custom";
+    let currentDiffView = "diff";
+    let repairedSourceCode = "";
+
+    // Sample Failure Definitions for Tab 1
+    const SAMPLE_BUGS = {
+      env: {
+        app: `import os\n\ndef get_payment_gateway_url() -> str:\n    """Fetches payment gateway URL from runtime environment."""\n    return os.environ["PAYMENT_GATEWAY_URL"]\n\ndef process_payment(order_id: str, amount_cents: int) -> dict:\n    url = get_payment_gateway_url()\n    return {\n        "status": "ready",\n        "gateway": url,\n        "order_id": order_id,\n        "amount_cents": amount_cents\n    }\n`,
+        test: `import pytest\nfrom app import process_payment\n\ndef test_process_payment_valid():\n    res = process_payment("ord_99", 5000)\n    assert res["status"] == "ready"\n    assert res["order_id"] == "ord_99"\n`
+      },
+      flaky: {
+        app: `class PaymentGatewayClient:\n    def __init__(self, failure_count: int = 2):\n        self.attempts = 0\n        self.failure_count = failure_count\n\n    def send_payment(self, payload: dict) -> dict:\n        self.attempts += 1\n        if self.attempts <= self.failure_count:\n            raise TimeoutError("TimeoutError: Payment gateway did not respond within 100ms")\n        return {"status": "success", "transaction_id": "tx_flaky_88192", "amount": payload.get("amount", 0)}\n\ndef process_charge(client: PaymentGatewayClient, amount: float) -> dict:\n    # Transient network call needing bounded retry loop\n    return client.send_payment({"amount": amount})\n`,
+        test: `import pytest\nfrom app import PaymentGatewayClient, process_charge\n\ndef test_charge_success_with_transient_delay():\n    client = PaymentGatewayClient(failure_count=2)\n    response = process_charge(client, 150.0)\n    assert response["status"] == "success"\n    assert response["transaction_id"] == "tx_flaky_88192"\n`
+      },
+      logic: {
+        app: `def allocate_stock(requested_units: int, available_stock: int) -> dict:\n    """Allocates units from available stock inventory."""\n    if requested_units <= 0:\n        raise ValueError("Requested units must be positive.")\n    # Bug: Off-by-one rejecting exact available stock allocations\n    if requested_units >= available_stock:\n        raise ValueError(f"Insufficient stock: requested {requested_units}, available {available_stock}")\n    remaining = available_stock - requested_units\n    return {"allocated": requested_units, "remaining": remaining}\n`,
+        test: `import pytest\nfrom app import allocate_stock\n\ndef test_allocate_partial_stock():\n    res = allocate_stock(20, 50)\n    assert res["allocated"] == 20\n    assert res["remaining"] == 30\n\ndef test_allocate_exact_available_stock():\n    # Allocating exactly 50 units when 50 are available should succeed\n    res = allocate_stock(50, 50)\n    assert res["allocated"] == 50\n    assert res["remaining"] == 0\n`
+      },
+      clear: {
+        app: `def my_service(data: dict) -> dict:\n    # Enter custom logic bug\n    return data\n`,
+        test: `import pytest\nfrom app import my_service\n\ndef test_my_service():\n    result = my_service({"key": "val"})\n    assert result["key"] == "val"\n`
+      }
+    };
+
+    // Scenario Badges map
+    const SCENARIO_BADGES = {
+      "01_logic_bug": { label: "Code Bug ➔ Causal Fix", color: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30" },
+      "02_missing_env_nocode": { label: "Config ➔ No-Code Fix", color: "bg-cyan-500/10 text-cyan-300 border-cyan-500/30" },
+      "03_assertion_delete_trap": { label: "Unsafe Patch ➔ Gate Refusal", color: "bg-rose-500/10 text-rose-300 border-rose-500/30" },
+      "04_broken_import": { label: "Refactor ➔ Causal Fix", color: "bg-blue-500/10 text-blue-300 border-blue-500/30" },
+      "05_api_contract_mismatch": { label: "Schema ➔ Causal Fix", color: "bg-purple-500/10 text-purple-300 border-purple-500/30" },
+      "06_flaky_async_timeout": { label: "Memory Guided ➔ Retry Fix", color: "bg-amber-500/10 text-amber-300 border-amber-500/30" }
+    };
+
+    // On DOM Load
+    document.addEventListener("DOMContentLoaded", async () => {
+      lucide.createIcons();
+      setupEditorSync();
+      loadSampleBug("logic");
+      await fetchHealth();
+      await fetchScenarios();
+      await fetchMemory();
+    });
+
+    // Editor Tab & Line Number Helpers
+    function setupEditorSync() {
+      const appArea = document.getElementById("editor-app-code");
+      const testArea = document.getElementById("editor-test-code");
+
+      const handleKey = (e, textarea) => {
+        if (e.key === "Tab") {
+          e.preventDefault();
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          textarea.value = textarea.value.substring(0, start) + "    " + textarea.value.substring(end);
+          textarea.selectionStart = textarea.selectionEnd = start + 4;
+          updateLines();
+        }
+      };
+
+      const updateLines = () => {
+        const appLines = (appArea.value.match(/\n/g) || []).length + 1;
+        const testLines = (testArea.value.match(/\n/g) || []).length + 1;
+
+        let appNumbers = "";
+        for (let i = 1; i <= Math.max(appLines, 10); i++) appNumbers += i + "<br>";
+        document.getElementById("lines-app-code").innerHTML = appNumbers;
+
+        let testNumbers = "";
+        for (let i = 1; i <= Math.max(testLines, 10); i++) testNumbers += i + "<br>";
+        document.getElementById("lines-test-code").innerHTML = testNumbers;
+      };
+
+      appArea.addEventListener("keydown", (e) => handleKey(e, appArea));
+      testArea.addEventListener("keydown", (e) => handleKey(e, testArea));
+      appArea.addEventListener("input", updateLines);
+      testArea.addEventListener("input", updateLines);
+    }
+
+    function loadSampleBug(type) {
+      const sample = SAMPLE_BUGS[type] || SAMPLE_BUGS.logic;
+      const appArea = document.getElementById("editor-app-code");
+      const testArea = document.getElementById("editor-test-code");
+      appArea.value = sample.app;
+      testArea.value = sample.test;
+      appArea.dispatchEvent(new Event("input"));
+      testArea.dispatchEvent(new Event("input"));
+    }
+
+    // Studio Tabs Switcher
+    function switchStudioTab(tab) {
+      activeStudioTab = tab;
+      const btnCustom = document.getElementById("tab-btn-custom");
+      const btnGithub = document.getElementById("tab-btn-github");
+      const btnCilog = document.getElementById("tab-btn-cilog");
+
+      const contentCustom = document.getElementById("tab-content-custom");
+      const contentGithub = document.getElementById("tab-content-github");
+      const contentCilog = document.getElementById("tab-content-cilog");
+
+      btnCustom.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 text-slate-400 hover:text-white";
+      btnGithub.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 text-slate-400 hover:text-white";
+      btnCilog.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 text-slate-400 hover:text-white";
+
+      contentCustom.classList.add("hidden");
+      contentGithub.classList.add("hidden");
+      contentCilog.classList.add("hidden");
+
+      if (tab === "custom") {
+        btnCustom.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 bg-emerald-600 text-white shadow";
+        contentCustom.classList.remove("hidden");
+      } else if (tab === "github") {
+        btnGithub.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 bg-cyan-600 text-white shadow";
+        contentGithub.classList.remove("hidden");
+      } else if (tab === "cilog") {
+        btnCilog.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5 bg-indigo-600 text-white shadow";
+        contentCilog.classList.remove("hidden");
+      }
+      lucide.createIcons();
+    }
+
+    // Sample CI Log Loader
+    function loadSampleCiLog(kind) {
+      const logArea = document.getElementById("input-ci-log");
+      if (kind === "assertion") {
+        logArea.value = `============================= test session starts ==============================\nFAILED tests/test_inventory.py::test_allocate_exact_available_stock - ValueError: Insufficient stock: requested 50, available 50\nAssertionError: Expected 50 units allocated, got ValueError exception.\n=========================== 1 failed, 1 passed in 0.42s ===========================`;
+      } else if (kind === "import") {
+        logArea.value = `ModuleNotFoundError: No module named 'utils_v1'\n  File "app.py", line 2, in <module>\n    from utils_v1 import calculate_tax\nFAILED test_app.py::test_generate_bill_standard - ModuleNotFoundError: No module named 'utils_v1'`;
+      } else if (kind === "flaky") {
+        logArea.value = `TimeoutError: Payment gateway did not respond within 100ms\n  File "app.py", line 12, in send_payment\n    raise TimeoutError("TimeoutError: Payment gateway did not respond within 100ms")\nFAILED test_app.py::test_charge_success_with_transient_delay - TimeoutError`;
+      }
+    }
+
+    // 1. Fetch Health
+    async function fetchHealth() {
+      try {
+        const res = await fetch("/api/health");
+        const data = await res.json();
+        const dot = document.getElementById("api-status-dot");
+        const text = document.getElementById("api-status-text");
+        const fastName = document.getElementById("fast-model-name");
+        const heavyName = document.getElementById("heavy-model-name");
+
+        if (data.status === "healthy") {
+          const isLive = (data.nebius_token_factory.mode === "live_nebius");
+          dot.className = isLive 
+            ? "w-2.5 h-2.5 rounded-full bg-emerald-400 glow-emerald animate-pulse" 
+            : "w-2.5 h-2.5 rounded-full bg-amber-400";
+          text.textContent = isLive
+            ? "Nebius Token Factory: LIVE Connected"
+            : "Nebius Token Factory: Smart Fallback Mode";
+          fastName.textContent = data.nebius_token_factory.fast_model_id.split("/").pop();
+          heavyName.textContent = data.nebius_token_factory.heavy_model_id.split("/").pop();
+        }
+      } catch (err) {
+        console.error("Health check error:", err);
+      }
+    }
+
+    // Nebius API Key Modal Actions
+    function openApiKeyModal() {
+      fetch("/api/config")
+        .then(res => res.json())
+        .then(cfg => {
+          const badge = document.getElementById("modal-key-status-badge");
+          if (cfg.connected) {
+            badge.className = "text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono";
+            badge.textContent = "LIVE Connected";
+            if (cfg.api_key_masked) {
+              document.getElementById("input-nebius-key").placeholder = `Current: ${cfg.api_key_masked}`;
+            }
+          } else {
+            badge.className = "text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-mono";
+            badge.textContent = "Smart Fallback Mode";
+          }
+          if (cfg.fast_model_id) document.getElementById("modal-fast-model-id").textContent = cfg.fast_model_id;
+          if (cfg.heavy_model_id) document.getElementById("modal-heavy-model-id").textContent = cfg.heavy_model_id;
+        })
+        .catch(console.error);
+
+      document.getElementById("modal-key-alert").classList.add("hidden");
+      document.getElementById("api-key-modal").classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    function closeApiKeyModal() {
+      document.getElementById("api-key-modal").classList.add("hidden");
+    }
+
+    function toggleApiKeyVisibility() {
+      const inp = document.getElementById("input-nebius-key");
+      const icon = document.getElementById("key-vis-icon");
+      if (inp.type === "password") {
+        inp.type = "text";
+        icon.setAttribute("data-lucide", "eye-off");
+      } else {
+        inp.type = "password";
+        icon.setAttribute("data-lucide", "eye");
+      }
+      lucide.createIcons();
+    }
+
+    async function submitApiKey() {
+      const btn = document.getElementById("btn-save-nebius-key");
+      const inp = document.getElementById("input-nebius-key");
+      const alertBox = document.getElementById("modal-key-alert");
+      const keyVal = inp.value.trim();
+
+      if (!keyVal) {
+        alertBox.className = "text-xs p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 block";
+        alertBox.textContent = "Please paste a valid NEBIUS_API_KEY.";
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 text-black animate-spin"></i> Connecting...`;
+      lucide.createIcons();
+
+      try {
+        const res = await fetch("/api/config/apikey", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ api_key: keyVal })
+        });
+        const data = await res.json();
+
+        if (data.connected || data.success) {
+          alertBox.className = "text-xs p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 block";
+          alertBox.textContent = `✓ ${data.message || "Connected to Nebius Token Factory live!"}`;
+
+          await fetchHealth();
+
+          setTimeout(() => {
+            closeApiKeyModal();
+          }, 1200);
+        } else {
+          alertBox.className = "text-xs p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 block";
+          alertBox.textContent = data.message || "Key saved in fallback mode.";
+          await fetchHealth();
+        }
+      } catch (err) {
+        alertBox.className = "text-xs p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 block";
+        alertBox.textContent = "Connection error: " + err;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="zap" class="w-3.5 h-3.5 text-black"></i> Save & Connect LIVE`;
+        lucide.createIcons();
+      }
+    }
+
+    // 2. Fetch Scenarios
+    async function fetchScenarios() {
+      try {
+        const res = await fetch("/api/scenarios");
+        scenarios = await res.json();
+        renderScenariosList();
+      } catch (err) {
+        console.error("Scenarios load error:", err);
+      }
+    }
+
+    function renderScenariosList() {
+      const container = document.getElementById("scenarios-container");
+      container.innerHTML = "";
+
+      scenarios.forEach(sc => {
+        const badgeInfo = SCENARIO_BADGES[sc.scenario_id] || { label: "Scenario", color: "bg-slate-800 text-slate-300 border-slate-700" };
+        const isSelected = sc.scenario_id === currentScenarioId;
+
+        const card = document.createElement("div");
+        card.id = `scenario-card-${sc.scenario_id}`;
+        card.className = `p-3.5 rounded-xl border transition-all cursor-pointer ${
+          isSelected 
+            ? "bg-slate-900 border-emerald-500/60 shadow-lg shadow-emerald-500/10" 
+            : "bg-slate-950/70 border-slate-800 hover:border-slate-700 hover:bg-slate-900/60"
+        }`;
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-xs font-bold text-white tracking-tight">${sc.scenario_id}</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full border font-mono ${badgeInfo.color}">${badgeInfo.label}</span>
+          </div>
+          <p class="text-xs text-slate-300 font-medium mb-1 line-clamp-1">${sc.title}</p>
+          <p class="text-[11px] text-slate-400 mb-2.5 line-clamp-2">${sc.description}</p>
+          <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
+            <span class="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+              <i data-lucide="git-commit" class="w-3 h-3 text-slate-400"></i> ${sc.commit_hash.slice(0, 7)}
+            </span>
+            <button id="btn-run-${sc.scenario_id}" onclick="runScenario('${sc.scenario_id}', event)" class="px-2.5 py-1 rounded-md bg-emerald-600/90 hover:bg-emerald-500 text-white font-medium text-[11px] flex items-center gap-1 transition-all shadow-sm">
+              <i data-lucide="play" class="w-3 h-3"></i> Run
+            </button>
+          </div>
+        `;
+
+        card.addEventListener("click", () => selectScenario(sc.scenario_id));
+        container.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    function selectScenario(sId) {
+      currentScenarioId = sId;
+      renderScenariosList();
+      const sc = scenarios.find(s => s.scenario_id === sId);
+      if (sc && sc.broken_code_preview) {
+        document.getElementById("editor-app-code").value = sc.broken_code_preview;
+        document.getElementById("editor-test-code").value = sc.test_code_preview || "";
+        document.getElementById("editor-app-code").dispatchEvent(new Event("input"));
+        document.getElementById("editor-test-code").dispatchEvent(new Event("input"));
+      }
+    }
+
+    // 3. Fetch Memory Bank
+    async function fetchMemory() {
+      try {
+        const res = await fetch("/api/memory");
+        const records = await res.json();
+        document.getElementById("memory-count-badge").textContent = `${records.length} rules`;
+        const container = document.getElementById("memory-items-container");
+        container.innerHTML = "";
+
+        records.slice(-4).reverse().forEach(rec => {
+          const item = document.createElement("div");
+          item.className = "bg-slate-900/90 border border-slate-800 rounded p-2 text-[11px] font-mono";
+          item.innerHTML = `
+            <div class="flex items-center justify-between text-purple-400 font-bold mb-0.5">
+              <span>${rec.id}</span>
+              <span class="text-[9px] text-slate-400">${(rec.tags || [])[0] || 'rule'}</span>
+            </div>
+            <p class="text-slate-300 truncate" title="${rec.reviewer_feedback}">"${rec.reviewer_feedback}"</p>
+          `;
+          container.appendChild(item);
+        });
+      } catch (err) {
+        console.error("Memory load error:", err);
+      }
+    }
+
+    // 4. Trigger Repair Run: Custom Code
+    async function executeCustomCodeRepair() {
+      const btn = document.getElementById("btn-heal-custom");
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Running Agent Loop...`;
+      lucide.createIcons();
+      resetPipelineVisuals();
+
+      try {
+        const appCode = document.getElementById("editor-app-code").value;
+        const testCode = document.getElementById("editor-test-code").value;
+        const budget = parseFloat(document.getElementById("input-budget").value) || 0.50;
+        const seed = parseInt(document.getElementById("input-seed").value) || 42;
+
+        const res = await fetch("/api/runs/custom-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            app_code: appCode,
+            test_code: testCode,
+            app_filename: "app.py",
+            test_filename: "test_app.py",
+            reasoning_budget_usd: budget,
+            seed: seed
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || "Repair loop failed");
+        }
+
+        currentRun = await res.json();
+        if (currentRun.auto_generated_test) {
+          const testEditor = document.getElementById("editor-test-code");
+          if (testEditor) {
+            testEditor.value = currentRun.auto_generated_test;
+            testEditor.dispatchEvent(new Event("input"));
+          }
+        }
+        renderRunResults(currentRun);
+        if (currentRun.auto_generated_test) {
+          const outcomeSubtitle = document.getElementById("outcome-subtitle");
+          if (outcomeSubtitle) {
+            outcomeSubtitle.innerHTML += ` <span class="text-cyan-300 font-mono font-semibold block mt-1">⚡ Mismatched/empty test suite detected: Auto-generated complete pytest suite for defined functions!</span>`;
+          }
+        }
+        await fetchMemory();
+      } catch (err) {
+        alert("Custom Code Healing Error: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4"></i> Heal This Failure (Run Agent Loop)`;
+        lucide.createIcons();
+      }
+    }
+
+    // 5. Trigger Repair Run: GitHub Repo
+    async function executeGithubRepoRepair() {
+      const btn = document.getElementById("btn-heal-github");
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Cloning & Healing...`;
+      lucide.createIcons();
+      resetPipelineVisuals();
+
+      try {
+        const url = document.getElementById("input-github-url").value;
+        const branch = document.getElementById("input-github-branch").value || "main";
+        const testCmd = document.getElementById("input-github-testcmd").value || "pytest";
+        const sha = document.getElementById("input-github-sha").value.trim() || null;
+        const budget = parseFloat(document.getElementById("input-budget").value) || 0.50;
+
+        const res = await fetch("/api/runs/github-repo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            repo_url: url,
+            branch: branch,
+            commit_sha: sha,
+            test_command: testCmd,
+            reasoning_budget_usd: budget
+          })
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || "Repository clone/healing failed");
+        }
+
+        currentRun = await res.json();
+        renderRunResults(currentRun);
+        await fetchMemory();
+      } catch (err) {
+        alert("GitHub Repo Healing Error: " + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="git-pull-request" class="w-4 h-4"></i> Clone & Heal Repository`;
+        lucide.createIcons();
+      }
+    }
+
+    // 6. Trigger CI Log Diagnosis
+    async function executeCiLogDiagnosis() {
+      const btn = document.getElementById("btn-inspect-cilog");
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Diagnosing Log...`;
+      lucide.createIcons();
+
+      try {
+        const log = document.getElementById("input-ci-log").value;
+        const res = await fetch("/api/runs/ci-log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ci_log: log })
+        });
+        const data = await res.json();
+        
+        openInspectorModal({
+          title: `CI Log Triage: ${data.triage.classification || 'DIAGNOSED'}`,
+          subtitle: `Model: ${data.model_id} • Fast Model Classification`,
+          content: `Classification: ${data.triage.classification}\nReasoning: ${data.triage.reasoning}\n\nRecommended Fix: ${data.remediation_suggestion}\n\nRaw Log Excerpt:\n${data.ci_log_preview}`
+        });
+      } catch (err) {
+        alert("CI Log Diagnosis Error: " + err);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="search" class="w-4 h-4 text-cyan-400"></i> Inspect & Diagnose Failure`;
+        lucide.createIcons();
+      }
+    }
+
+    // 7. Trigger Legacy Run
+    async function runScenario(scenarioId, event) {
+      if (event) event.stopPropagation();
+      selectScenario(scenarioId);
+
+      const runBtn = document.getElementById(`btn-run-${scenarioId}`);
+      if (runBtn) {
+        runBtn.disabled = true;
+        runBtn.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 animate-spin"></i>`;
+        lucide.createIcons();
+      }
+
+      resetPipelineVisuals();
+
+      try {
+        const budget = parseFloat(document.getElementById("input-budget").value) || 0.50;
+        const seed = parseInt(document.getElementById("input-seed").value) || 42;
+
+        const res = await fetch("/api/runs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scenario_id: scenarioId,
+            reasoning_budget_usd: budget,
+            seed: seed
+          })
+        });
+
+        currentRun = await res.json();
+        renderRunResults(currentRun);
+        await fetchMemory();
+      } catch (err) {
+        alert("Error executing repair: " + err);
+      } finally {
+        if (runBtn) {
+          runBtn.disabled = false;
+          runBtn.innerHTML = `<i data-lucide="play" class="w-3 h-3"></i> Run`;
+          lucide.createIcons();
+        }
+      }
+    }
+
+    // 8. Render Run Results
+    function renderRunResults(run) {
+      const full = run.full_result || {};
+      const status = run.status;
+
+      // Enable bottom actions
+      document.getElementById("btn-replay").disabled = false;
+      document.getElementById("btn-download-dossier").disabled = false;
+      document.getElementById("btn-preview-pr").disabled = false;
+
+      // -------------------------------------------------------------
+      // CONFIDENCE SCORE & RISK TIER (100% Mathematically Synced)
+      // -------------------------------------------------------------
+      const breakdown = run.confidence_breakdown || full.confidence_breakdown || {};
+      
+      const reproPts = breakdown.reproduction_pts ?? breakdown.deterministic_repro ?? (run.confidence_score >= 25 ? 25 : 0);
+      const suitePts = breakdown.test_suite_pts ?? breakdown.tests_and_counterfactual ?? (run.confidence_score >= 55 ? 30 : 0);
+      const diffPts = breakdown.minimal_diff_pts ?? breakdown.minimal_diff_enforced ?? (run.confidence_score >= 75 ? 20 : 0);
+      const safetyPts = breakdown.static_safety_pts ?? breakdown.static_safety_passed ?? (run.confidence_score >= 90 ? 15 : (run.confidence_score >= 40 ? 15 : 0));
+      const memoryPts = breakdown.memory_match_pts ?? breakdown.memory_convention_matched ?? 0;
+      const penaltyPts = breakdown.penalties_pts ?? (breakdown.penalties ? -breakdown.penalties : 0);
+
+      const computedTotal = Math.max(0, Math.min(100, reproPts + suitePts + diffPts + safetyPts + memoryPts + penaltyPts));
+      const score = (breakdown.total_score !== undefined) ? breakdown.total_score : (run.confidence_score !== undefined ? run.confidence_score : (full.confidence_score !== undefined ? full.confidence_score : computedTotal));
+      const tier = run.risk_tier || full.risk_tier || breakdown.risk_tier || (score >= 85 ? "HIGH_CONFIDENCE_AUTO_READY" : (score >= 50 ? "MEDIUM_CONFIDENCE_REVIEW_REQUIRED" : "LOW_CONFIDENCE_ESCALATE_ONLY"));
+
+      const dialNum = document.getElementById("score-dial-number");
+      dialNum.textContent = Math.round(score);
+
+      const tierBadge = document.getElementById("risk-tier-badge");
+      const tierTitle = document.getElementById("risk-tier-title");
+      const tierDesc = document.getElementById("risk-tier-desc");
+      const tierAction = document.getElementById("risk-tier-action-indicator");
+
+      if (tier.includes("HIGH") || score >= 85) {
+        dialNum.className = "text-4xl font-extrabold font-mono text-emerald-400 tracking-tight";
+        tierBadge.className = "px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 glow-emerald";
+        tierBadge.textContent = "HIGH CONFIDENCE";
+        tierTitle.textContent = "1-Click Auto Ready";
+        tierDesc.textContent = "High confidence repair verified by counterfactual proof. Safe for 1-click human-approved merge.";
+        tierAction.textContent = "✓ Gate Passed: Autonomy Grade A";
+      } else if (tier.includes("MEDIUM") || score >= 50) {
+        dialNum.className = "text-4xl font-extrabold font-mono text-amber-400 tracking-tight";
+        tierBadge.className = "px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 glow-amber";
+        tierBadge.textContent = "REVIEW REQUIRED";
+        tierTitle.textContent = "Human Review Required";
+        tierDesc.textContent = "Diagnosis and minimal patch provided with caution advisories. Inspect diff before PR merge.";
+        tierAction.textContent = "⚠ Gate Caution: Review Suggested";
+      } else {
+        dialNum.className = "text-4xl font-extrabold font-mono text-rose-400 tracking-tight";
+        tierBadge.className = "px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30 glow-rose";
+        tierBadge.textContent = "ESCALATE ONLY";
+        tierTitle.textContent = "Refused Auto-Merge";
+        tierDesc.textContent = "Patch refused due to safety violations (e.g. deleted assertions) or low confidence. Root-cause only.";
+        tierAction.textContent = "✗ Gate Blocked: Human Escalation";
+      }
+
+      // Point Allocations
+      updatePointItem("repro", reproPts, 25);
+      updatePointItem("suite", suitePts, 30);
+      updatePointItem("diff", diffPts, 20);
+      updatePointItem("safety", safetyPts, 15);
+      updatePointItem("memory", memoryPts, 10);
+
+      const penVal = document.getElementById("pt-val-penalty");
+      const penIcon = document.getElementById("pt-icon-penalty");
+      if (penaltyPts < 0) {
+        penVal.textContent = `${penaltyPts} pts`;
+        penVal.className = "text-rose-400 font-bold";
+        penIcon.textContent = "✗";
+        penIcon.className = "text-rose-400 font-bold";
+      } else {
+        penVal.textContent = "0 pts";
+        penVal.className = "text-emerald-400 font-bold";
+        penIcon.textContent = "✓";
+        penIcon.className = "text-emerald-400 font-bold";
+      }
+
+      document.getElementById("confidence-justification-bar").textContent = 
+        `Confidence Rationale: ${breakdown.justification || "All 5 quality criteria evaluated deterministically."}`;
+
+      const iters = full.iterations_count || 1;
+      document.getElementById("iteration-trail-count").textContent = `${iters} of 4 max (Iterative Loop)`;
+
+      // Pipeline Timelines
+      const timeline = full.agent_timeline || [];
+      let totalMs = 0;
+      timeline.forEach((event, idx) => {
+        totalMs += event.duration_ms;
+        const stageEl = document.getElementById(`agent-stage-${idx + 1}`);
+        const statusEl = document.getElementById(`agent-stage-${idx + 1}-status`);
+        const timeEl = document.getElementById(`agent-stage-${idx + 1}-time`);
+
+        if (stageEl) {
+          stageEl.className = "bg-slate-900 border border-slate-700/80 rounded-lg p-3";
+          statusEl.textContent = event.status;
+          statusEl.className = event.status === "COMPLETED" ? "text-emerald-400 font-bold" : (event.status.includes("REFUSED") ? "text-rose-400 font-bold" : "text-slate-300");
+          timeEl.textContent = `${event.duration_ms}ms`;
+        }
+      });
+      document.getElementById("pipeline-total-time").textContent = `Total Latency: ${totalMs.toFixed(0)}ms`;
+
+      // Outcome Banner
+      const banner = document.getElementById("outcome-banner");
+      const bTitle = document.getElementById("outcome-title");
+      const bSub = document.getElementById("outcome-subtitle");
+      const bIcon = document.getElementById("outcome-icon");
+      const bContainer = document.getElementById("outcome-icon-container");
+      const bBadge = document.getElementById("outcome-badge-container");
+
+      banner.classList.remove("hidden");
+
+      if (status === "CLEAN_AUDIT_PASSED" || full.status === "CLEAN_AUDIT_PASSED" || status === "CLEAN_AUDIT_VERIFIED") {
+        banner.className = "rounded-xl border p-4 flex items-start justify-between gap-4 bg-emerald-950/60 border-emerald-500/40 text-emerald-100 glow-emerald";
+        bContainer.className = "mt-0.5 p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400";
+        bIcon.setAttribute("data-lucide", "shield-check");
+        bTitle.textContent = "Repository Integrity Causally Verified (100/100)";
+        bSub.textContent = "Static AST safety audit and runtime test runner confirmed zero regressions, syntax errors, or unhandled exceptions across repository files.";
+        bBadge.innerHTML = `<span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-mono font-bold">CLEAN_AUDIT_PASSED</span>`;
+      } else if (status === "VERIFIED_READY" || full.status === "CAUSALLY_VERIFIED") {
+        banner.className = "rounded-xl border p-4 flex items-start justify-between gap-4 bg-emerald-950/60 border-emerald-500/40 text-emerald-100 glow-emerald";
+        bContainer.className = "mt-0.5 p-1.5 rounded-lg bg-emerald-500/20 text-emerald-400";
+        bIcon.setAttribute("data-lucide", "check-circle-2");
+        bTitle.textContent = "Causal Repair Verified & Validated";
+        bSub.textContent = "Patch passed all static quality gates and counterfactual revert testing. 100% causal proof established.";
+        bBadge.innerHTML = `<span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-mono font-bold">VERIFIED_READY</span>`;
+      } else if (status === "NO_CODE_FIX" || full.status === "NO_CODE_FIX_TRIGGERED") {
+        banner.className = "rounded-xl border p-4 flex items-start justify-between gap-4 bg-cyan-950/60 border-cyan-500/40 text-cyan-100 glow-cyan";
+        bContainer.className = "mt-0.5 p-1.5 rounded-lg bg-cyan-500/20 text-cyan-400";
+        bIcon.setAttribute("data-lucide", "settings-2");
+        bTitle.textContent = "No Source-Code Change Required";
+        bSub.textContent = "Triage Agent identified an environment or CI configuration issue. Remediation runbook generated.";
+        bBadge.innerHTML = `<span class="px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-mono font-bold">NO_CODE_FIX</span>`;
+      } else if (status === "REFUSED_ESCALATED" || full.status === "REFUSED_BY_QUALITY_GATE") {
+        banner.className = "rounded-xl border p-4 flex items-start justify-between gap-4 bg-rose-950/60 border-rose-500/40 text-rose-100 glow-rose";
+        bContainer.className = "mt-0.5 p-1.5 rounded-lg bg-rose-500/20 text-rose-400";
+        bIcon.setAttribute("data-lucide", "shield-alert");
+        bTitle.textContent = "RepairIQ Declined to Auto-Fix This Failure";
+        bSub.textContent = "Proposed patch violated static safety gates (e.g. removed assertions or swallowed exceptions). Escalated for human review.";
+        bBadge.innerHTML = `<span class="px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-mono font-bold">REFUSED_ESCALATED</span>`;
+      } else {
+        banner.className = "rounded-xl border p-4 flex items-start justify-between gap-4 bg-slate-900 border-slate-700 text-slate-100";
+        bContainer.className = "mt-0.5 p-1.5 rounded-lg bg-slate-800 text-slate-300";
+        bIcon.setAttribute("data-lucide", "activity");
+        bTitle.textContent = `Execution Complete: ${status || 'COMPLETED'}`;
+        bSub.textContent = "Autonomous analysis finished with complete audit report.";
+        bBadge.innerHTML = `<span class="px-3 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-xs font-mono font-bold">${status || 'COMPLETED'}</span>`;
+      }
+
+      // -------------------------------------------------------------
+      // INTERACTIVE EVIDENCE GRAPH NODES FLOW
+      // -------------------------------------------------------------
+      renderInteractiveEvidenceGraph(full);
+
+      // Counterfactual Matrix
+      const cfBody = document.getElementById("counterfactual-table-body");
+      const verdictBanner = document.getElementById("causal-verdict-banner");
+      cfBody.innerHTML = "";
+
+      if (full.counterfactual_proof && full.counterfactual_proof.steps) {
+        full.counterfactual_proof.steps.forEach(s => {
+          const row = document.createElement("tr");
+          row.className = "hover:bg-slate-800/40";
+          const isPass = s.verified;
+          const statusBadge = isPass 
+            ? `<span class="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">✓ Confirmed</span>`
+            : `<span class="px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold">✗ Failed</span>`;
+
+          const outcomeColor = s.actual_outcome === "PASS" ? "text-emerald-400 font-bold" : "text-rose-400 font-bold";
+
+          row.innerHTML = `
+            <td class="py-2.5 px-3 text-slate-500">${s.step_num}</td>
+            <td class="py-2.5 px-3 font-medium text-slate-200">${s.step_name}</td>
+            <td class="py-2.5 px-3 text-slate-400 font-bold">${s.expected_outcome}</td>
+            <td class="py-2.5 px-3 ${outcomeColor}">${s.actual_outcome}</td>
+            <td class="py-2.5 px-3 text-slate-400">${s.duration_sec}s</td>
+            <td class="py-2.5 px-3 text-right">${statusBadge}</td>
+          `;
+          cfBody.appendChild(row);
+        });
+
+        if (full.counterfactual_proof.causally_verified) {
+          verdictBanner.classList.remove("hidden");
+        } else {
+          verdictBanner.classList.add("hidden");
+        }
+      } else {
+        cfBody.innerHTML = `
+          <tr>
+            <td colspan="6" class="py-8 text-center text-slate-400">
+              ${status === "NO_CODE_FIX" ? "Step bypassed: No-Code configuration fix requires zero code mutation." : "Counterfactual verification halted by Quality Gate refusal."}
+            </td>
+          </tr>
+        `;
+        verdictBanner.classList.add("hidden");
+      }
+
+      // Quality Gate Checklist
+      const qg = full.quality_gate;
+      const qgBadge = document.getElementById("quality-gate-status-badge");
+      const qgRefusal = document.getElementById("quality-refusal-box");
+      const qgRefusalText = document.getElementById("quality-refusal-text");
+
+      if (qg) {
+        qgBadge.textContent = qg.passed ? "✓ All Passed" : "✗ Refused";
+        qgBadge.className = qg.passed 
+          ? "text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold"
+          : "text-[10px] px-2 py-0.5 rounded-full font-mono bg-rose-500/10 text-rose-400 border border-rose-500/30 font-bold";
+
+        updateCheckItem("ast", qg.checklist.ast_valid);
+        updateCheckItem("asserts", qg.checklist.no_deleted_assertions);
+        updateCheckItem("exceptions", qg.checklist.no_broad_exceptions);
+        updateCheckItem("hygiene", qg.checklist.no_todos_or_secrets);
+        updateCheckItem("diff", qg.checklist.minimal_diff);
+
+        if (!qg.passed) {
+          qgRefusal.classList.remove("hidden");
+          qgRefusalText.textContent = qg.refusal_reason || "Safety check violation";
+        } else {
+          qgRefusal.classList.add("hidden");
+        }
+      }
+
+      // Nebius Token Financial Telemetry
+      const cost = full.cost_breakdown;
+      if (cost) {
+        document.getElementById("stat-fast-calls").textContent = cost.fast_model ? cost.fast_model.call_count : 0;
+        document.getElementById("stat-heavy-calls").textContent = cost.heavy_model ? cost.heavy_model.call_count : 0;
+        document.getElementById("stat-total-tokens").textContent = (cost.total_tokens || 0).toLocaleString();
+        document.getElementById("stat-total-cost").textContent = `$${(cost.total_cost_usd || 0).toFixed(6)}`;
+        document.getElementById("stat-savings-usd").textContent = `$${(cost.saved_by_routing_usd || 0).toFixed(6)} (${(cost.savings_pct || 0).toFixed(1)}% saved)`;
+        document.getElementById("savings-progress-bar").style.width = `${Math.min(100, (cost.savings_pct || 0) * 2)}%`;
+      }
+
+      // Code Diff vs Full Repaired Code
+      const diffTag = document.getElementById("diff-file-tag");
+      const diffContainer = document.getElementById("diff-container");
+      diffTag.textContent = full.candidate_patch ? full.candidate_patch.target_file : "app.py";
+
+      if (status === "NO_CODE_FIX") {
+        const rem = full.remediation_plan || {};
+        diffContainer.innerHTML = `
+          <div class="space-y-3">
+            <div class="text-cyan-300 font-bold text-xs mb-1">✓ ${rem.summary}</div>
+            <div class="bg-slate-900 p-2.5 rounded border border-slate-800">
+              <span class="text-slate-400 text-[11px] block mb-1">Environment Secrets Configuration:</span>
+              <pre class="text-emerald-400 text-xs font-mono">${rem.env_snippet || ''}</pre>
+            </div>
+            <div class="bg-slate-900 p-2.5 rounded border border-slate-800">
+              <span class="text-slate-400 text-[11px] block mb-1">GitHub Actions Workflow Fix:</span>
+              <pre class="text-cyan-300 text-xs font-mono">${rem.ci_workflow_snippet || ''}</pre>
+            </div>
+          </div>
+        `;
+      } else {
+        const diffText = (full.candidate_patch && full.candidate_patch.unified_diff) || run.unified_diff || "";
+        if (diffText) {
+          const lines = diffText.split("\n").map(line => {
+            if (line.startsWith("---") || line.startsWith("+++")) {
+              return `<div class="diff-hunk px-2 py-0.5">${escapeHtml(line)}</div>`;
+            } else if (line.startsWith("@@")) {
+              return `<div class="diff-hunk px-2 py-0.5 font-bold">${escapeHtml(line)}</div>`;
+            } else if (line.startsWith("-")) {
+              return `<div class="diff-del px-2 py-0.5">${escapeHtml(line)}</div>`;
+            } else if (line.startsWith("+")) {
+              return `<div class="diff-add px-2 py-0.5">${escapeHtml(line)}</div>`;
+            }
+            return `<div class="px-2 py-0.5 text-slate-400">${escapeHtml(line)}</div>`;
+          }).join("");
+          diffContainer.innerHTML = lines;
+        } else {
+          diffContainer.innerHTML = `<div class="text-slate-500 py-12 text-center">No code diff generated.</div>`;
+        }
+      }
+
+      // Fixed Code Preview Storage
+      repairedSourceCode = "";
+      if (full.candidate_patch && full.candidate_patch.patched_code) {
+        repairedSourceCode = full.candidate_patch.patched_code;
+      } else if (run.patched_code) {
+        repairedSourceCode = run.patched_code;
+      } else if (full.investigation && full.investigation.patched_code) {
+        repairedSourceCode = full.investigation.patched_code;
+      } else if (full.counterfactual_proof && full.counterfactual_proof.patched_code) {
+        repairedSourceCode = full.counterfactual_proof.patched_code;
+      }
+      document.getElementById("fixed-code-text").textContent = repairedSourceCode || "Full source code available after successful patch synthesis.";
+
+      // Reviewer Copilot
+      const copilot = run.reviewer_copilot || {};
+      const brBadge = document.getElementById("blast-radius-badge");
+      const br = copilot.blast_radius || {};
+      brBadge.textContent = `Blast Radius: ${br.risk_score || 'LOW'}`;
+      brBadge.className = br.risk_score === "HIGH" 
+        ? "text-[10px] px-2 py-0.5 rounded font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold"
+        : "text-[10px] px-2 py-0.5 rounded font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold";
+
+      document.getElementById("copilot-what-changed").textContent = copilot.what_changed_and_why || "Automated analysis completed.";
+      document.getElementById("copilot-could-break").textContent = copilot.what_could_break || "--";
+      document.getElementById("copilot-rollback-cmd").textContent = (copilot.rollback_plan ? copilot.rollback_plan.command : "git revert HEAD");
+
+      const altList = document.getElementById("copilot-alternatives");
+      altList.innerHTML = "";
+      (copilot.alternatives_considered || []).forEach(alt => {
+        const li = document.createElement("li");
+        li.textContent = `• ✗ ${alt}`;
+        altList.appendChild(li);
+      });
+
+      // Bottom Button Lock Logic
+      const approveBtn = document.getElementById("btn-approve-pr");
+      const approveIcon = document.getElementById("btn-approve-icon");
+      const approveText = document.getElementById("btn-approve-text");
+
+      if (status === "REFUSED_ESCALATED") {
+        approveBtn.disabled = true;
+        approveBtn.className = "px-4 py-2 rounded-lg bg-slate-800 text-slate-400 font-medium text-xs flex items-center gap-1.5 cursor-not-allowed border border-rose-500/30";
+        approveIcon.setAttribute("data-lucide", "lock");
+        approveText.textContent = "Blocked by Safety Gate";
+      } else {
+        approveBtn.disabled = false;
+        approveBtn.className = "px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center gap-1.5 shadow-lg shadow-emerald-600/20 transition-all";
+        approveIcon.setAttribute("data-lucide", "check");
+        approveText.textContent = "Approve & Open PR";
+      }
+
+      lucide.createIcons();
+    }
+
+    // 9. Interactive Clickable Evidence Graph Renderer
+    function renderInteractiveEvidenceGraph(full) {
+      const container = document.getElementById("evidence-graph-flow");
+      container.innerHTML = "";
+
+      const eg = full.evidence_graph || {};
+      const inv = full.investigation || {};
+      const patch = full.candidate_patch || {};
+      const triage = full.triage || {};
+      const targetFile = patch.target_file || (eg.root ? eg.root.changed_file : "app.py");
+
+      const nodes = [
+        {
+          id: "node_test",
+          title: "1. Failing Test Assertion",
+          subtitle: inv.failing_symbol || (eg.root ? eg.root.test_name : "test_suite"),
+          icon: "bug",
+          color: "border-rose-500/50 bg-rose-950/20 text-rose-300",
+          data: {
+            title: "Failing Test Assertion Log",
+            subtitle: `Test: ${inv.failing_symbol || "test_app.py"} • Implicated by Pytest runner`,
+            content: full.initial_failure_summary || eg.raw_traceback || `Failing test: ${inv.failing_symbol}\nResult: FAILED assertion in test runner.`
+          }
+        },
+        {
+          id: "node_error",
+          title: "2. Normalized Error Signature",
+          subtitle: triage.classification || "LOGIC_REGRESSION",
+          icon: "alert-triangle",
+          color: "border-amber-500/50 bg-amber-950/20 text-amber-300",
+          data: {
+            title: "Error Signature & Triage Classification",
+            subtitle: `Classification: ${triage.classification || 'LOGIC_REGRESSION'} • Fast Model (120B)`,
+            content: `Classification: ${triage.classification || 'LOGIC_REGRESSION'}\nTriage Reasoning: ${triage.reasoning || 'Identified deterministic assertion mismatch.'}\nAction: ${triage.is_no_code_fix ? 'No-Code Fix' : 'Code Patch Synthesis'}`
+          }
+        },
+        {
+          id: "node_file",
+          title: "3. Implicated Source File & Line",
+          subtitle: `${targetFile} (AST Analyzed)`,
+          icon: "file-code",
+          color: "border-cyan-500/50 bg-cyan-950/20 text-cyan-300",
+          data: {
+            title: "Implicated Source File & AST Trace",
+            subtitle: `Target File: ${targetFile}`,
+            content: `Target File: ${targetFile}\nImplicated in Trace: YES\nFile Exists: YES\nAST Safety Valid: ${full.quality_gate ? full.quality_gate.passed : true}`
+          }
+        },
+        {
+          id: "node_hypothesis",
+          title: "4. Nemotron Root-Cause Hypothesis",
+          subtitle: inv.root_cause_analysis ? inv.root_cause_analysis.slice(0, 40) + "..." : "Root cause identified",
+          icon: "brain",
+          color: "border-purple-500/50 bg-purple-950/20 text-purple-300",
+          data: {
+            title: "Root Cause Hypothesis & Investigation",
+            subtitle: "Synthesized by Nemotron Ultra (550B)",
+            content: `Root Cause: ${inv.root_cause_analysis || 'Identified calculation or logic bug'}\n\nHypotheses Considered:\n${(inv.hypotheses || []).map(h => '• ' + h).join('\n')}\n\nMatched Memory: ${full.memory_match ? full.memory_match.id : 'None (novel pattern)'}`
+          }
+        },
+        {
+          id: "node_patch",
+          title: "5. Synthesized Minimal Patch",
+          subtitle: patch.strategy || "Targeted repair (<50 lines)",
+          icon: "git-pull-request",
+          color: "border-emerald-500/50 bg-emerald-950/20 text-emerald-300",
+          data: {
+            title: "Minimal Patch Diff & Strategy",
+            subtitle: `Strategy: ${patch.strategy || 'Minimal fix'} • Iteration ${patch.iteration || 1}`,
+            content: patch.unified_diff || "No code diff (No-Code remediation)."
+          }
+        },
+        {
+          id: "node_proof",
+          title: "6. Counterfactual Causal Proof",
+          subtitle: full.counterfactual_proof && full.counterfactual_proof.causally_verified ? "100% Causally Verified" : "Verification Evaluated",
+          icon: "shield-check",
+          color: "border-emerald-500/50 bg-emerald-950/30 text-emerald-200",
+          data: {
+            title: "4-Step Counterfactual Causal Proof",
+            subtitle: "Verification Sandbox Matrix",
+            content: (full.counterfactual_proof && full.counterfactual_proof.steps) 
+              ? full.counterfactual_proof.steps.map(s => `Step ${s.step_num} (${s.step_name}): Expected=${s.expected_outcome}, Actual=${s.actual_outcome} -> ${s.verified ? 'PASSED' : 'FAILED'}`).join('\n')
+              : "Counterfactual proof steps recorded in verification matrix."
+          }
+        }
+      ];
+
+      nodes.forEach((n, idx) => {
+        const card = document.createElement("div");
+        card.className = `graph-node p-3 rounded-xl border ${n.color} flex items-center justify-between shadow-sm`;
+        card.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div class="p-2 rounded-lg bg-slate-900/80 border border-slate-700/60">
+              <i data-lucide="${n.icon}" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <span class="text-xs font-bold block text-slate-100">${n.title}</span>
+              <span class="text-[11px] font-mono opacity-80">${escapeHtml(n.subtitle)}</span>
+            </div>
+          </div>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-900/80 text-slate-400 border border-slate-700 flex items-center gap-1">
+            <i data-lucide="zoom-in" class="w-3 h-3 text-cyan-400"></i> Inspect
+          </span>
+        `;
+        card.addEventListener("click", () => openInspectorModal(n.data));
+        container.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    // Modal Inspectors
+    function openInspectorModal(data) {
+      document.getElementById("inspector-title").textContent = data.title;
+      document.getElementById("inspector-subtitle").textContent = data.subtitle;
+      document.getElementById("inspector-content").textContent = data.content;
+      document.getElementById("inspector-modal").classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    function closeInspectorModal() {
+      document.getElementById("inspector-modal").classList.add("hidden");
+    }
+
+    function copyInspectorContent() {
+      const text = document.getElementById("inspector-content").textContent;
+      navigator.clipboard.writeText(text);
+      alert("✓ Evidence snippet copied to clipboard!");
+    }
+
+    // Diff vs Fixed Code Toggle
+    function switchDiffView(view) {
+      currentDiffView = view;
+      const tabDiff = document.getElementById("view-tab-diff");
+      const tabCode = document.getElementById("view-tab-code");
+      const diffBox = document.getElementById("diff-container");
+      const codeBox = document.getElementById("fixed-code-container");
+
+      if (view === "diff") {
+        tabDiff.className = "px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-slate-800 text-cyan-300 border border-cyan-500/30 flex items-center gap-1";
+        tabCode.className = "px-2.5 py-1 rounded-md text-xs font-mono text-slate-400 hover:text-white flex items-center gap-1";
+        diffBox.classList.remove("hidden");
+        codeBox.classList.add("hidden");
+      } else {
+        tabCode.className = "px-2.5 py-1 rounded-md text-xs font-mono font-bold bg-slate-800 text-emerald-300 border border-emerald-500/30 flex items-center gap-1";
+        tabDiff.className = "px-2.5 py-1 rounded-md text-xs font-mono text-slate-400 hover:text-white flex items-center gap-1";
+        codeBox.classList.remove("hidden");
+        diffBox.classList.add("hidden");
+      }
+      lucide.createIcons();
+    }
+
+    function copyFixedCodeToEditor() {
+      if (!repairedSourceCode) {
+        alert("No fixed code is currently available to copy.");
+        return;
+      }
+      document.getElementById("editor-app-code").value = repairedSourceCode;
+      document.getElementById("editor-app-code").dispatchEvent(new Event("input"));
+      switchStudioTab("custom");
+      alert("✓ Repaired code copied into Source Code (app.py) editor! You can now edit it or re-run tests.");
+    }
+
+    function updatePointItem(key, actual, max) {
+      const icon = document.getElementById(`pt-icon-${key}`);
+      const val = document.getElementById(`pt-val-${key}`);
+      if (!icon || !val) return;
+      if (actual > 0) {
+        icon.textContent = "✓";
+        icon.className = "text-emerald-400 font-bold";
+        val.textContent = `+${actual} pts`;
+        val.className = "text-emerald-400 font-bold";
+      } else {
+        icon.textContent = "○";
+        icon.className = "text-slate-500 font-bold";
+        val.textContent = `+0 pts`;
+        val.className = "text-slate-500 font-bold";
+      }
+    }
+
+    function updateCheckItem(key, passed) {
+      const icon = document.getElementById(`check-icon-${key}`);
+      const badge = document.getElementById(`check-badge-${key}`);
+      if (passed) {
+        icon.className = "text-emerald-400 font-bold text-sm";
+        icon.textContent = "✓";
+        badge.className = "font-mono text-emerald-400 font-bold";
+        badge.textContent = "Pass";
+      } else {
+        icon.className = "text-rose-400 font-bold text-sm";
+        icon.textContent = "✗";
+        badge.className = "font-mono text-rose-400 font-bold";
+        badge.textContent = "Violated";
+      }
+    }
+
+    function resetPipelineVisuals() {
+      for (let i = 1; i <= 4; i++) {
+        const stageEl = document.getElementById(`agent-stage-${i}`);
+        const statusEl = document.getElementById(`agent-stage-${i}-status`);
+        const timeEl = document.getElementById(`agent-stage-${i}-time`);
+        if (stageEl) {
+          stageEl.className = "bg-slate-950/60 border border-slate-800/80 rounded-lg p-3";
+          statusEl.textContent = "Running...";
+          statusEl.className = "text-cyan-400 animate-pulse font-bold";
+          timeEl.textContent = "--";
+        }
+      }
+    }
+
+    // 10. Repair Replay
+    async function triggerReplay() {
+      if (!currentRun) return;
+      const btn = document.getElementById("btn-replay");
+      btn.disabled = true;
+      btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> Replaying...`;
+      lucide.createIcons();
+
+      try {
+        const res = await fetch(`/api/runs/${currentRun.run_id}/replay`, { method: "POST" });
+        const data = await res.json();
+        if (data.reproducible) {
+          alert(`🎉 Deterministic Replay Verified!\nMatch Score: ${data.match_score}\nStatus Match: ${data.comparison.status_match}\nCausal Match: ${data.comparison.causality_match}\nReplay ID: ${data.replay_run_id}`);
+        } else {
+          alert(`Replay completed with discrepancies: ${JSON.stringify(data.comparison)}`);
+        }
+      } catch (err) {
+        alert("Replay error: " + err);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-cyan-400"></i> Repair Replay`;
+        lucide.createIcons();
+      }
+    }
+
+    // 11. Download Dossier
+    function downloadDossier() {
+      if (!currentRun) return;
+      window.location.href = `/api/runs/${currentRun.run_id}/dossier`;
+    }
+
+    // 12. View GitHub PR Modal
+    function openPrModal() {
+      if (!currentRun) return;
+      document.getElementById("pr-modal-content").textContent = currentRun.github_pr_body || "No PR description generated.";
+      document.getElementById("pr-modal").classList.remove("hidden");
+      lucide.createIcons();
+    }
+
+    function closePrModal() {
+      document.getElementById("pr-modal").classList.add("hidden");
+    }
+
+    function copyPrMarkdown() {
+      const text = document.getElementById("pr-modal-content").textContent;
+      navigator.clipboard.writeText(text);
+      alert("✓ GitHub PR description copied to clipboard!");
+    }
+
+    // 13. Submit Human Review Decision
+    async function submitDecision(decision) {
+      if (!currentRun) return;
+      const feedbackInput = document.getElementById("input-reviewer-feedback");
+      const feedback = feedbackInput.value.trim();
+
+      const btn = decision === "approve" ? document.getElementById("btn-approve-pr") : document.getElementById("btn-reject");
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`/api/runs/${currentRun.run_id}/decision`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            decision: decision,
+            reviewer_feedback: feedback || undefined,
+            override_safety: false
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          alert(`Blocked by Safety Policy: ${errData.detail || 'Action disallowed'}`);
+          return;
+        }
+
+        const data = await res.json();
+        if (decision === "approve") {
+          alert(`🎉 Pull Request Created Successfully!\nBranch: ${data.branch}\nURL: ${data.pr_url}\nMemory Rule Added: ${data.memory_record_added}`);
+        } else {
+          alert(`Repair rejected. Feedback recorded in Repair Memory bank: ${data.memory_record_added}`);
+        }
+
+        feedbackInput.value = "";
+        await fetchMemory();
+      } catch (err) {
+        alert("Decision submission error: " + err);
+      } finally {
+        btn.disabled = false;
+        lucide.createIcons();
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return "";
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>

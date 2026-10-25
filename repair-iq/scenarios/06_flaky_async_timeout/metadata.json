@@ -1,0 +1,9 @@
+{
+  "scenario_id": "06_flaky_async_timeout",
+  "title": "Payment Gateway Transient Timeout Latency Spike",
+  "author": "payments-reliability@fintech.io",
+  "commit_hash": "f7a8b9c0d1e23456",
+  "changed_file": "app.py",
+  "expected_classification": "FLAKY_TIMEOUT",
+  "description": "Payment gateway client raises TimeoutError under transient network latency. Requires bounded retry pattern adhering to team conventions."
+}
