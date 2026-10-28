@@ -110,9 +110,9 @@ HEAVY_MODEL_ID=nvidia/Llama-3_1-Nemotron-Ultra-253B-v1
 
 ### 4. Start the RepairIQ Server
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn main:app --host 0.0.0.0 --port 8001
 ```
-Open **`http://localhost:8000`** in your browser.
+Open **`http://localhost:8001`** in your browser.
 
 ---
 

@@ -717,12 +717,13 @@ class EvidenceCollector:
                     ]
 
         # 5. Clean Repository Audit: All unit tests pass & AST verified clean
-        primary_file = "app.py"
-        for p in py_files:
-            rel = str(p.relative_to(sandbox_path)).replace("\\", "/")
-            if not p.name.startswith("test_"):
-                primary_file = rel
-                break
+        primary_file = meta.get("primary_file") or meta.get("changed_file") or "app.py"
+        if not (sandbox_path / primary_file).exists():
+            for p in py_files:
+                rel = str(p.relative_to(sandbox_path)).replace("\\", "/")
+                if not p.name.startswith("test_"):
+                    primary_file = rel
+                    break
 
         snippet = self._get_source_context(primary_file, 1, window=6) or (
             (sandbox_path / primary_file).read_text(encoding="utf-8", errors="replace")[:400]

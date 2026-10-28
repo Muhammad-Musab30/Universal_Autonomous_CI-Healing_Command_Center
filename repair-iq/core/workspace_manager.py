@@ -355,6 +355,101 @@ class WorkspaceManager:
     # =========================================================================
     # MODE 1: Arbitrary GitHub Repository URL
     # =========================================================================
+    @staticmethod
+    def discover_repository_source_files(workspace_path: Path) -> Dict[str, Any]:
+        """
+        Scans a cloned repository and discovers:
+          - primary_file: most important application entrypoint
+          - python_files: list of all non-test python files
+          - test_files: list of all test files
+          - has_tests: boolean
+          - other_source_files: cpp, c, java, js, ts, go, rust, etc.
+        """
+        ignored_dirs = {
+            ".git", ".venv", "venv", "__pycache__", ".pytest_cache", ".ruff_cache",
+            ".mypy_cache", ".coverage", ".idea", ".vscode", ".DS_Store", "node_modules",
+            "dist", "build", ".next", ".nuxt", "site-packages", "target", "vendor"
+        }
+
+        source_exts = {
+            ".py", ".cpp", ".c", ".cc", ".cxx", ".h", ".hpp",
+            ".js", ".jsx", ".ts", ".tsx", ".java", ".go", ".rs"
+        }
+
+        py_files: List[str] = []
+        test_files: List[str] = []
+        other_files: List[str] = []
+
+        for root, dirs, files in os.walk(workspace_path):
+            dirs[:] = [d for d in dirs if d not in ignored_dirs and not d.startswith(".")]
+            for f in files:
+                if f.startswith(".") or f.endswith((".pyc", ".pyo", ".min.js", ".min.css")):
+                    continue
+                full_p = Path(root) / f
+                try:
+                    rel_p = str(full_p.relative_to(workspace_path)).replace("\\", "/")
+                except Exception:
+                    continue
+
+                ext = full_p.suffix.lower()
+                if ext not in source_exts:
+                    continue
+
+                is_test = (
+                    f.startswith("test_") or f.endswith("_test.py") or
+                    ".test." in f or ".spec." in f or
+                    "/tests/" in rel_p or "/test/" in rel_p or "\\tests\\" in str(full_p)
+                )
+
+                if is_test:
+                    test_files.append(rel_p)
+                elif ext == ".py":
+                    py_files.append(rel_p)
+                else:
+                    other_files.append(rel_p)
+
+        # Prioritize key entrypoints across Python, C/C++, Java, JS/TS, Go, Rust
+        priority_names = [
+            "app.py", "main.py", "server.py", "interview_engine.py", "evaluator.py",
+            "index.py", "cli.py", "router.py", "core.py", "api.py", "model.py", "utils.py",
+            "main.cpp", "quick_sort.cpp", "main.c", "app.cpp", "server.cpp",
+            "Main.java", "App.java", "Application.java",
+            "index.js", "server.js", "app.js", "index.ts", "server.ts", "app.ts",
+            "main.go", "main.rs", "lib.rs"
+        ]
+
+        primary_file = None
+        for name in priority_names:
+            matched_py = next((p for p in py_files if Path(p).name.lower() == name.lower()), None)
+            if matched_py:
+                primary_file = matched_py
+                break
+            matched_other = next((p for p in other_files if Path(p).name.lower() == name.lower()), None)
+            if matched_other:
+                primary_file = matched_other
+                break
+
+        if not primary_file:
+            if py_files:
+                # Prefer files at root directory, then by size
+                sorted_py = sorted(py_files, key=lambda p: (0 if "/" not in p else 1, -(workspace_path / p).stat().st_size if (workspace_path / p).exists() else 0))
+                primary_file = sorted_py[0]
+            elif other_files:
+                sorted_other = sorted(other_files, key=lambda p: (0 if "/" not in p else 1, -(workspace_path / p).stat().st_size if (workspace_path / p).exists() else 0))
+                primary_file = sorted_other[0]
+            elif test_files:
+                primary_file = test_files[0]
+            else:
+                primary_file = "app.py"
+
+        return {
+            "primary_file": primary_file,
+            "python_files": py_files,
+            "test_files": test_files,
+            "has_tests": len(test_files) > 0,
+            "other_source_files": other_files
+        }
+
     def setup_github_repo(
         self,
         repo_url: str,
@@ -364,57 +459,103 @@ class WorkspaceManager:
     ) -> WorkspaceInfo:
         """
         Clones any public GitHub repository into an isolated sandbox using depth 5.
-        Extracts recent commits, git diff HEAD~1, and the repository file tree.
+        Universal branch-agnostic cloning:
+          1. Tries user-specified branch with --branch.
+          2. On failure, cleans up destination and retries without --branch to clone default branch.
+          3. Wraps all subprocess calls in try/except blocks to prevent crashes.
         """
+        # Normalize repository URL
+        clean_url = repo_url.strip()
+        if clean_url.startswith("git@github.com:"):
+            clean_url = "https://github.com/" + clean_url[len("git@github.com:"):]
+        elif not clean_url.startswith("http://") and not clean_url.startswith("https://"):
+            clean_url = "https://" + clean_url
+        if clean_url.endswith(".git"):
+            clean_url = clean_url[:-4]
+
         r_id = run_id or self._generate_run_id()
         workspace_path = (self.sandbox_base_dir / r_id).resolve()
         if workspace_path.exists():
             shutil.rmtree(workspace_path, ignore_errors=True)
-        workspace_path.mkdir(parents=True, exist_ok=True)
+        self.sandbox_base_dir.mkdir(parents=True, exist_ok=True)
 
-        clone_cmd = ["git", "clone", "--depth", "5"]
-        if branch:
-            clone_cmd.extend(["--branch", branch])
-        clone_cmd.extend([repo_url, str(workspace_path)])
+        target_branch = branch.strip() if branch and branch.strip() and branch.strip().lower() not in ["default", "head"] else None
+        clone_success = False
+        last_error = ""
 
-        res_clone = subprocess.run(clone_cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=90)
-        if res_clone.returncode != 0:
-            # Fallback if --branch failed (e.g., branch was a detached tag or commit)
-            if branch:
-                fallback_cmd = ["git", "clone", "--depth", "5", repo_url, str(workspace_path)]
-                res_fallback = subprocess.run(fallback_cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=90)
-                if res_fallback.returncode != 0:
-                    raise RuntimeError(f"Failed to clone GitHub repository '{repo_url}': {res_fallback.stderr}")
-                # Try checkout
-                subprocess.run(["git", "checkout", branch], cwd=str(workspace_path), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=20)
-            else:
-                raise RuntimeError(f"Failed to clone GitHub repository '{repo_url}': {res_clone.stderr}")
+        # Attempt 1: If branch is specified, try cloning that branch directly
+        if target_branch:
+            try:
+                cmd = ["git", "clone", "--depth", "5", "--branch", target_branch, clean_url, str(workspace_path)]
+                res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+                if res.returncode == 0 and workspace_path.exists() and any(workspace_path.iterdir()):
+                    clone_success = True
+                else:
+                    last_error = res.stderr or res.stdout or f"exit code {res.returncode}"
+            except Exception as e:
+                last_error = str(e)
+
+        # Attempt 2: If Attempt 1 failed or no branch was specified, clean directory and clone repository default branch
+        if not clone_success:
+            if workspace_path.exists():
+                shutil.rmtree(workspace_path, ignore_errors=True)
+            try:
+                cmd = ["git", "clone", "--depth", "5", clean_url, str(workspace_path)]
+                res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+                if res.returncode == 0 and workspace_path.exists() and any(workspace_path.iterdir()):
+                    clone_success = True
+                else:
+                    err_msg = res.stderr or res.stdout or last_error or "Unknown git clone failure"
+                    raise RuntimeError(f"Failed to clone GitHub repository '{clean_url}': {err_msg}")
+            except Exception as e:
+                if isinstance(e, RuntimeError):
+                    raise
+                raise RuntimeError(f"Git clone error for '{clean_url}': {e}")
 
         # Optional commit checkout
         if commit_sha:
-            res_co = subprocess.run(
-                ["git", "checkout", commit_sha],
-                cwd=str(workspace_path),
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=20
-            )
-            if res_co.returncode != 0:
-                raise RuntimeError(f"Failed to checkout commit '{commit_sha}': {res_co.stderr}")
+            try:
+                res_co = subprocess.run(
+                    ["git", "checkout", commit_sha],
+                    cwd=str(workspace_path),
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=20
+                )
+                if res_co.returncode != 0:
+                    logger.warning(f"Could not checkout commit {commit_sha}: {res_co.stderr}")
+            except Exception as e:
+                logger.warning(f"Error checking out commit {commit_sha}: {e}")
+
+        # Determine active branch
+        active_branch = "default"
+        try:
+            res_br = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=str(workspace_path), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
+            if res_br.returncode == 0 and res_br.stdout.strip():
+                active_branch = res_br.stdout.strip()
+        except Exception:
+            pass
 
         commit_hash, recent_commits, git_diff = self._extract_git_metadata(workspace_path)
         file_tree = self._build_file_tree(workspace_path)
+        discovered = self.discover_repository_source_files(workspace_path)
 
         metadata = {
             "scenario_id": r_id,
             "mode": "github",
-            "repo_url": repo_url,
-            "branch": branch or "default",
+            "repo_url": clean_url,
+            "branch": active_branch,
+            "requested_branch": target_branch or "default",
             "commit_sha": commit_sha or commit_hash,
             "commit_hash": commit_hash,
-            "author": recent_commits[0].get("author", "GitHub User") if recent_commits else "GitHub User"
+            "author": recent_commits[0].get("author", "GitHub User") if recent_commits else "GitHub User",
+            "primary_file": discovered["primary_file"],
+            "changed_file": discovered["primary_file"],
+            "has_tests": discovered["has_tests"],
+            "test_files": discovered["test_files"],
+            "python_files": discovered["python_files"]
         }
 
         return WorkspaceInfo(
